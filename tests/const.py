@@ -1,0 +1,4 @@
+ZONE = 1
+SOURCE = 4
+ASYNC_PORT_URL = "socket://127.0.0.1:63321"
+SYNC_PORT_URL = "loop://"

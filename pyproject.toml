@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "nuvo-serial"
+version = "0.1.0"
+description = "Python API implementing the Nuvo Grand Concerto/Essentia G multi-zone audio amplifier serial control protocol"
+authors = ["sprocket-9 <sprocketnumber9@gmail.com>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+pyserial-asyncio = ">=0.5"
+pyserial = ">=3.5"
+icontract = ">=2.4"
+typeguard = ">=2.10"
+
+[tool.poetry.dev-dependencies]
+mypy = ">=0.812"
+mypy-extensions = ">0.4.3"
+pytest = ">=6.2.2"
+pytest-asyncio = ">=0.5"
+ipython = ">=7.21.0"
+ipdb = ">=0.13.7"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
