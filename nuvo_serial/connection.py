@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 from asyncio.exceptions import IncompleteReadError, LimitOverrunError, TimeoutError
 
-# from collections.abc import Coroutine
 import serial_asyncio
 import logging
 import re
@@ -46,12 +45,8 @@ from nuvo_serial.message import (
     Version,
     NuvoClass,
 )
-from nuvo_serial.nuvo_typing import (
-    # NuvoClass,
-    NuvoMsgType,
-)
+from nuvo_serial.nuvo_typing import NuvoMsgType
 
-# from nuvo_serial.const import ZONE_STATUS, NuvoMsgType
 
 _LOGGER = logging.getLogger(__name__)
 

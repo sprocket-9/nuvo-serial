@@ -18,10 +18,9 @@ from typing import (
     List,
 )
 
-from .const import (
+from nuvo_serial.const import (
     MODEL_GC,
     MODEL_ESSENTIA_G,
-    # NuvoMsgType,
     ZONE_ALL_OFF,
     ZONE_BUTTON,
     ZONE_CONFIGURATION,
@@ -32,13 +31,13 @@ from .const import (
     SYSTEM_VERSION,
 
 )
-from .exceptions import (
+from nuvo_serial.exceptions import (
     MessageClassificationError,
     MessageFormatError,
     MessageResponseError,
 )
 
-from .nuvo_typing import (
+from nuvo_serial.nuvo_typing import (
     NuvoMsgType
 )
 

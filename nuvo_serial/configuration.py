@@ -3,7 +3,7 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Final, Literal, Union
 
-from .const import MODEL_GC, MODEL_ESSENTIA_G
+from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G
 
 TIMEOUT_OP = 0.2  # Number of seconds before serial operation timeout
 
