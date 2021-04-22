@@ -3,6 +3,7 @@ from typing import Final
 MODEL_GC: Final = "Grand_Concerto"
 MODEL_ESSENTIA_G: Final = "Essentia_G"
 
+OK_RESPONSE: Final = "OKResponse"
 SOURCE_CONFIGURATION: Final = "SourceConfiguration"
 SYSTEM_VERSION: Final = "Version"
 ZONE_STATUS: Final = "ZoneStatus"

@@ -43,10 +43,12 @@ from nuvo_serial.const import (
     ZONE_BUTTON_PREV,
     ZONE_BUTTON_NEXT,
     SYSTEM_VERSION,
+    OK_RESPONSE,
 )
 from nuvo_serial.exceptions import ModelMismatchError
 from nuvo_serial.message import (
     DndMask,
+    OKResponse,
     SourceConfiguration,
     SourceMask,
     ZoneAllOff,
@@ -415,30 +417,51 @@ class NuvoAsync:
 
     """
     Zone Button Commands
+
+    These commands simulate pressing the play/plause, prev and next button on a
+    zone keypad.
+
+    A command returns a range of responses depending on Nuvo state:
+    When:
+        zone off -> ZONE_STATUS
+        zone on and current selected source is:
+            non-nuvonet -> ZONE_BUTTON
+            nuvonet     -> OK_RESPONSE
+
+    Assuming when a real zone keypad button is pressed while a Nuvonet source is 
+    selected, nothing will be emitted by the Nuvo's serial port, and the OK_RESPONSE
+    is only for the simulated command.
+
     """
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def zone_button_play_pause(self, zone: int) -> Union[ZoneButton, ZoneStatus]:
+    async def zone_button_play_pause(
+        self, zone: int
+    ) -> Union[ZoneButton, ZoneStatus, OKResponse]:
         return await self._connection.send_message(
             _format_zone_button_request(zone, ZONE_BUTTON_PLAY_PAUSE),
-            (ZONE_BUTTON, ZONE_STATUS),
+            (ZONE_BUTTON, ZONE_STATUS, OK_RESPONSE),
         )
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def zone_button_prev(self, zone: int) -> Union[ZoneButton, ZoneStatus]:
+    async def zone_button_prev(
+        self, zone: int
+    ) -> Union[ZoneButton, ZoneStatus, OKResponse]:
         return await self._connection.send_message(
             _format_zone_button_request(zone, ZONE_BUTTON_PREV),
-            (ZONE_BUTTON, ZONE_STATUS),
+            (ZONE_BUTTON, ZONE_STATUS, OK_RESPONSE),
         )
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def zone_button_next(self, zone: int) -> Union[ZoneButton, ZoneStatus]:
+    async def zone_button_next(
+        self, zone: int
+    ) -> Union[ZoneButton, ZoneStatus, OKResponse]:
         return await self._connection.send_message(
             _format_zone_button_request(zone, ZONE_BUTTON_NEXT),
-            (ZONE_BUTTON, ZONE_STATUS),
+            (ZONE_BUTTON, ZONE_STATUS, OK_RESPONSE),
         )
 
     """

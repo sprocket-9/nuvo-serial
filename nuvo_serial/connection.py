@@ -35,6 +35,7 @@ from nuvo_serial.exceptions import (
 from nuvo_serial.message import (
     format_message,
     process_message,
+    OKResponse,
     SourceConfiguration,
     ZoneAllOff,
     ZoneButton,
@@ -315,31 +316,20 @@ class AsyncConnection:
     async def send_message_without_reply(self, message: str) -> None:
         await self._send(format_message(self._model, message))
 
-    # @overload
-    # async def send_message(self, msg: str, message_types: Literal[ZONE_STATUS]) -> ZoneStatus: ...
-
-    # @overload
-    # async def send_message(
-    #     self,
-    #     msg: str,
-    #     message_types: Tuple[Literal["ZoneButton"], Literal["ZoneStatus"]],
-    # ) -> ZoneButton:
-    #     ...
-
     @overload
     async def send_message(
         self,
         msg: str,
-        message_types: Literal["ZoneAllOff"],
-    ) -> ZoneAllOff:
+        message_types: Tuple[
+            Literal["ZoneButton"], Literal["ZoneStatus"], Literal["OKResponse"]
+        ],
+    ) -> Union[ZoneButton, ZoneStatus, OKResponse]:
         ...
 
     @overload
     async def send_message(
-        self,
-        msg: str,
-        message_types: Tuple[Literal["ZoneButton"], Literal["ZoneStatus"]],
-    ) -> ZoneButton:
+        self, msg: str, message_types: Literal["ZoneAllOff"],
+    ) -> ZoneAllOff:
         ...
 
     @overload

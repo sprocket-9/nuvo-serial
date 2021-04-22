@@ -21,6 +21,7 @@ from typing import (
 from nuvo_serial.const import (
     MODEL_GC,
     MODEL_ESSENTIA_G,
+    OK_RESPONSE,
     ZONE_ALL_OFF,
     ZONE_BUTTON,
     ZONE_CONFIGURATION,
@@ -114,6 +115,10 @@ CONCERTO_ZONE_ALL_OFF = re.compile(
     r"#ALLOFF$"
 )
 
+CONCERTO_OK_RESPONSE = re.compile(
+    r"#OK$"
+)
+
 
 class FlagHelper(Flag):
     def to_list(self) -> List[str]:
@@ -160,6 +165,27 @@ class DndMask(FlagHelper, Flag):
     NOMUTE = auto()
     NOPAGE = auto()
     NOPARTY = auto()
+
+
+@dataclass
+class OKResponse:
+    ok_response: bool
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        return re.search(CONCERTO_OK_RESPONSE, response_string)
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[OKResponse]:
+        if not response_string:
+            return None
+
+        match = cls._parse_response(response_string)
+
+        if not match:
+            return None
+
+        return OKResponse(ok_response=True)
 
 
 @dataclass
@@ -551,6 +577,7 @@ class ZoneButton:
 
 
 NuvoClass = Union[
+    OKResponse,
     ZoneAllOff,
     ZoneStatus,
     ZoneEQStatus,
@@ -563,6 +590,7 @@ NuvoClass = Union[
 
 MsgClasses = {
     MODEL_GC: {
+        OK_RESPONSE: OKResponse,
         ZONE_ALL_OFF: ZoneAllOff,
         ZONE_STATUS: ZoneStatus,
         ZONE_EQ_STATUS: ZoneEQStatus,

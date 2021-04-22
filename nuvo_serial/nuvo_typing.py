@@ -1,9 +1,10 @@
 from typing import Literal, Union
 
 NuvoMsgType = Union[
+    Literal["AllOff"],
+    Literal["OKResponse"],
     Literal["SourceConfiguration"],
     Literal["Version"],
-    Literal["SourceConfiguration"],
     Literal["ZoneButton"],
     Literal["ZoneConfiguration"],
     Literal["ZoneEQStatus"],
