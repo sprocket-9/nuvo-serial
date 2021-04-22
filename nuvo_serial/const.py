@@ -23,3 +23,5 @@ ZONE_BUTTON_TRANSFORM = {
     ZONE_BUTTON_PREV: "keypad_prev",
     ZONE_BUTTON_NEXT: "keypad_next",
 }
+
+RESPONSE_STRING_OK = "#OK"

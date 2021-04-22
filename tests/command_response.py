@@ -1,5 +1,6 @@
 import re
-from nuvo_serial.const import MODEL_GC
+from nuvo_serial.const import MODEL_GC, RESPONSE_STRING_OK
+from tests.const import ZONE, ZONE_OFF, ZONE_NUVONET_SOURCE, SOURCE, SOURCE_NUVONET
 
 command_patterns: dict = {MODEL_GC: {}}
 
@@ -14,7 +15,7 @@ Version
 """
 grand_concerto_patterns["version"] = re.compile(r"VER")
 grand_concerto_responses["version"] = r'#VER"NV-I8G FWv0.91 HWv0"$'
-    # r"#VER\"(?P<product_number>.+)?\s+(?P<fw_version>.+)?\s+(?P<hw_version>.+)?\""
+# r"#VER\"(?P<product_number>.+)?\s+(?P<fw_version>.+)?\s+(?P<hw_version>.+)?\""
 
 """
 Zone Status
@@ -194,3 +195,51 @@ grand_concerto_responses[
 grand_concerto_responses[
     "zone_volume_reset"
 ] = "#ZCFG1,MAXVOL0,INIVOL20,PAGEVOL40,PARTYVOL50,VOLRST1"
+
+"""
+Zone Button
+"""
+grand_concerto_patterns["zone_button_next_zone_off"] = re.compile(
+    r"Z{}NEXT$".format(ZONE_OFF)
+)
+grand_concerto_patterns["zone_button_prev_zone_off"] = re.compile(
+    r"Z{}PREV$".format(ZONE_OFF)
+)
+grand_concerto_patterns["zone_button_play_pause_zone_off"] = re.compile(
+    r"Z{}PLAYPAUSE$".format(ZONE_OFF)
+)
+
+grand_concerto_patterns["zone_button_next_zone_nuvonet_source"] = re.compile(
+    r"Z{}NEXT$".format(ZONE_NUVONET_SOURCE)
+)
+grand_concerto_patterns["zone_button_prev_zone_nuvonet_source"] = re.compile(
+    r"Z{}PREV$".format(ZONE_NUVONET_SOURCE)
+)
+grand_concerto_patterns["zone_button_play_pause_zone_nuvonet_source"] = re.compile(
+    r"Z{}PLAYPAUSE$".format(ZONE_NUVONET_SOURCE)
+)
+
+grand_concerto_patterns["zone_button_next"] = re.compile(r"Z(?P<zone>\d+)NEXT$")
+grand_concerto_patterns["zone_button_prev"] = re.compile(r"Z(?P<zone>\d+)PREV$")
+grand_concerto_patterns["zone_button_play_pause"] = re.compile(
+    r"Z(?P<zone>\d+)PLAYPAUSE$"
+)
+
+
+grand_concerto_responses["zone_button_next_zone_off"] = "#Z{},OFF".format(ZONE_OFF)
+grand_concerto_responses["zone_button_prev_zone_off"] = "#Z{},OFF".format(ZONE_OFF)
+grand_concerto_responses["zone_button_play_pause_zone_off"] = "#Z{},OFF".format(
+    ZONE_OFF
+)
+
+grand_concerto_responses["zone_button_next_zone_nuvonet_source"] = RESPONSE_STRING_OK
+grand_concerto_responses["zone_button_prev_zone_nuvonet_source"] = RESPONSE_STRING_OK
+grand_concerto_responses[
+    "zone_button_play_pause_zone_nuvonet_source"
+] = RESPONSE_STRING_OK
+
+grand_concerto_responses["zone_button_next"] = "#Z{}S{}NEXT".format(ZONE, SOURCE)
+grand_concerto_responses["zone_button_prev"] = "#Z{}S{}PREV".format(ZONE, SOURCE)
+grand_concerto_responses["zone_button_play_pause"] = "#Z{}S{}PLAYPAUSE".format(
+    ZONE, SOURCE
+)
