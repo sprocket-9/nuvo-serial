@@ -121,7 +121,7 @@ async def async_nuvo(event_loop):
 
     global _nuvo_async
     _nuvo_async = await get_nuvo_async(
-        ASYNC_PORT_URL, MODEL, do_model_check=False, timeout=0.1, disconnect_time=0.1
+        ASYNC_PORT_URL, MODEL, do_model_check=False, track_state=False, timeout=0.1, disconnect_time=0.1
     )
     return _nuvo_async
 

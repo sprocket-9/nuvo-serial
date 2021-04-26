@@ -29,6 +29,7 @@ from nuvo_serial.const import (
     ZONE_EQ_STATUS,
     ZONE_STATUS,
     SOURCE_CONFIGURATION,
+    SYSTEM_PAGING,
     SYSTEM_VERSION,
 
 )
@@ -119,6 +120,8 @@ CONCERTO_OK_RESPONSE = re.compile(
     r"#OK$"
 )
 
+CONCERTO_PAGE_RESPONSE = re.compile(r"#PAGE(?P<page>0|1)$")
+
 
 class FlagHelper(Flag):
     def to_list(self) -> List[str]:
@@ -165,6 +168,27 @@ class DndMask(FlagHelper, Flag):
     NOMUTE = auto()
     NOPAGE = auto()
     NOPARTY = auto()
+
+
+@dataclass
+class Paging:
+    page: bool
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        return re.search(CONCERTO_PAGE_RESPONSE, response_string)
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[Paging]:
+        if not response_string:
+            return None
+
+        match = cls._parse_response(response_string)
+
+        if not match:
+            return None
+
+        return Paging(bool(int(match.group("page"))))
 
 
 @dataclass
@@ -588,7 +612,7 @@ NuvoClass = Union[
     Version,
 ]
 
-MsgClasses = {
+MSG_CLASSES = {
     MODEL_GC: {
         OK_RESPONSE: OKResponse,
         ZONE_ALL_OFF: ZoneAllOff,
@@ -598,21 +622,44 @@ MsgClasses = {
         SOURCE_CONFIGURATION: SourceConfiguration,
         ZONE_VOLUME_CONFIGURATION: ZoneVolumeConfiguration,
         ZONE_BUTTON: ZoneButton,
+        SYSTEM_PAGING: Paging,
         SYSTEM_VERSION: Version,
     }
 }
 
-MsgClasses[MODEL_ESSENTIA_G] = MsgClasses[MODEL_GC]
+MSG_CLASSES[MODEL_ESSENTIA_G] = MSG_CLASSES[MODEL_GC]
 
 
-MsgClassKeys = {
+MSG_CLASS_KEYS = {
+    OK_RESPONSE: "generic",
+    ZONE_ALL_OFF: "system",
     ZONE_STATUS: "zone",
     ZONE_EQ_STATUS: "zone",
     ZONE_CONFIGURATION: "zone",
     SOURCE_CONFIGURATION: "source",
     ZONE_VOLUME_CONFIGURATION: "zone",
     ZONE_BUTTON: "zone",
-    SYSTEM_VERSION: "model",
+    SYSTEM_PAGING: "system",
+    SYSTEM_VERSION: "system",
+}
+
+MSG_CLASS_TRACK = {
+    MODEL_GC: [
+        ZONE_STATUS,
+        ZONE_EQ_STATUS,
+        ZONE_CONFIGURATION,
+        SOURCE_CONFIGURATION,
+        ZONE_VOLUME_CONFIGURATION,
+        SYSTEM_PAGING,
+        SYSTEM_VERSION
+    ]
+}
+
+MSG_CLASS_QUERY_ZONE_STATUS = {
+    MODEL_GC: [
+        ZONE_ALL_OFF,
+        SYSTEM_PAGING
+    ]
 }
 
 
@@ -627,7 +674,7 @@ def process_message(model: str, message: bytes) -> Tuple[str, NuvoClass]:
     processed_data: NuvoClass
     found_match = False
 
-    for msg_type, msg_class in MsgClasses[model].items():
+    for msg_type, msg_class in MSG_CLASSES[model].items():
         d_class = msg_class.from_string(msg) # type: ignore
         if d_class:
             found_match = True

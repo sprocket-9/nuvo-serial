@@ -1,20 +1,12 @@
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Coroutine
 from dataclasses import asdict
-from enum import Flag, auto, unique
 import logging
-import re
 from typing import (
     Any,
-    Awaitable,
     Callable,
-    Dict,
     Optional,
-    Match,
-    Type,
-    TypeVar,
     Union,
     List,
 )
@@ -42,6 +34,7 @@ from nuvo_serial.const import (
     ZONE_BUTTON_PLAY_PAUSE,
     ZONE_BUTTON_PREV,
     ZONE_BUTTON_NEXT,
+    SYSTEM_PAGING,
     SYSTEM_VERSION,
     OK_RESPONSE,
 )
@@ -49,6 +42,7 @@ from nuvo_serial.exceptions import ModelMismatchError
 from nuvo_serial.message import (
     DndMask,
     OKResponse,
+    Paging,
     SourceConfiguration,
     SourceMask,
     ZoneAllOff,
@@ -58,6 +52,9 @@ from nuvo_serial.message import (
     ZoneStatus,
     ZoneVolumeConfiguration,
     Version,
+    MSG_CLASS_KEYS,
+    MSG_CLASS_QUERY_ZONE_STATUS,
+    MSG_CLASS_TRACK
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -147,6 +144,7 @@ class NuvoAsync:
         timeout: Optional[float] = None,
         disconnect_time: Optional[float] = None,
         do_model_check: Optional[bool] = True,
+        track_state: Optional[bool] = True,
     ):
         self._retry_request = None
         self._port_url = port_url
@@ -154,11 +152,20 @@ class NuvoAsync:
         self._timeout = timeout
         self._disconnect_time = disconnect_time
         self._do_model_check = do_model_check
+        self._track_state = track_state
         _set_model_globals(self._model)
         self._bus = MsgBus()
+        self._state: dict = {}
         self._physical_zones: int = config[self._model]["zones"]["physical"]
 
     async def connect(self) -> None:
+        if self._track_state:
+            self._setup_subscribers()
+        await self._connect()
+        if self._track_state:
+            await self._get_initial_states()
+
+    async def _connect(self) -> None:
         _LOGGER.info('Attempting connection to "%s"', self._port_url)
         self._connection = AsyncConnection(
             self._port_url, self._model, self._bus, self._timeout, self._disconnect_time
@@ -196,9 +203,88 @@ class NuvoAsync:
     ) -> None:
         self._bus.remove_subscriber(coro, event_name)
 
+    async def _state_tracker(self, message: dict[str, Any]) -> None:
+        """
+        Event callback to receive all the dataclasses created from received nuvo
+        messages.
+        Stores each one in memory, merging any changes received.
+        {
+            'ZoneStatus': {
+                1: dataclass',
+                2: dataclass,
+                ...
+            }
+            'ZoneConfiguration': {
+                1: dataclass',
+                2: dataclass,
+                ...
+            }
+        }
+        """
+        class_name = message["event_name"]
+        new_d_class = message["event"]
+        event_entity = MSG_CLASS_KEYS[class_name]
+        new_d_class_asdict = asdict(message["event"])
+        event_data = self._state.setdefault(class_name, {})
+
+        if event_entity in ('zone', 'source'):
+            existing_d_class = event_data.get(new_d_class_asdict[event_entity], None)
+            key = new_d_class_asdict[event_entity]
+        elif event_entity in ('system'):
+            existing_d_class = event_data.get(event_entity, None)
+            key = event_entity
+
+        if existing_d_class:
+            # merge data rather than replace, so original object remains
+            for k, v in new_d_class_asdict.items():
+                setattr(existing_d_class, k, v)
+        else:
+            event_data[key] = new_d_class
+
+    async def _event_zone_query(self, message: dict[str, Any]) -> None:
+        """Callback to handle received events which require sending a ZoneStatus query.
+
+        Commands *ALLOFF & *PAGE change the zone state but the Nuvo doesn't
+        emit ZoneStatus messages to reflect this.  Need to request ZoneStatus
+        manually to keep state trackers in step. """
+
+        await self._get_zone_states()
+
+    def _setup_subscribers(self) -> None:
+
+        for msg_type in MSG_CLASS_TRACK[self._model]:
+            self.add_subscriber(self._state_tracker, msg_type)
+
+        for msg_type in MSG_CLASS_QUERY_ZONE_STATUS[self._model]:
+            self.add_subscriber(self._event_zone_query, msg_type)
+
+    async def _get_initial_states(self) -> None:
+        await self._get_zone_states()
+        await self._get_zone_configurations()
+        await self._get_zone_volume_configurations()
+        await self._get_zone_eq_configurations()
+        await self._get_source_configurations()
+        await self.get_version()
+
     async def _get_zone_states(self) -> None:
         for zone in ZONE_RANGE_PHYSICAL:
             await self.zone_status(zone)
+
+    async def _get_zone_configurations(self) -> None:
+        for zone in ZONE_RANGE_PHYSICAL:
+            await self.zone_configuration(zone)
+
+    async def _get_zone_eq_configurations(self) -> None:
+        for zone in ZONE_RANGE_PHYSICAL:
+            await self.zone_eq_status(zone)
+
+    async def _get_zone_volume_configurations(self) -> None:
+        for zone in ZONE_RANGE_PHYSICAL:
+            await self.zone_volume_configuration(zone)
+
+    async def _get_source_configurations(self) -> None:
+        for source in SOURCE_RANGE:
+            await self.source_status(source)
 
     """
     Zone Status Commands
@@ -428,7 +514,7 @@ class NuvoAsync:
             non-nuvonet -> ZONE_BUTTON
             nuvonet     -> OK_RESPONSE
 
-    Assuming when a real zone keypad button is pressed while a Nuvonet source is 
+    Assuming when a real zone keypad button is pressed while a Nuvonet source is
     selected, nothing will be emitted by the Nuvo's serial port, and the OK_RESPONSE
     is only for the simulated command.
 
@@ -526,28 +612,12 @@ class NuvoAsync:
     """
 
     @locked
-    async def set_page(self, page: bool, query_zone_states: bool = True) -> None:
-        await self._connection.send_message_without_reply(_format_set_page(page))
-        if query_zone_states:
-            """
-            The paging command does not cause zone status change messages to be
-            to emitted by the Nuvo, need to query these directly to ensure
-            anything tracking zone state is updated.
-
-            We're in a locked coro so can't call other commands directly or
-            they won't be able to acquire the lock, so create a task instead
-            and allow us to return from this coro to release the lock.
-            """
-            loop = asyncio.get_running_loop()
-            loop.call_later(1, lambda: loop.create_task(self._get_zone_states()))
+    async def set_page(self, page: bool, query_zone_states: bool = True) -> Paging:
+        return await self._connection.send_message(_format_set_page(page), SYSTEM_PAGING)
 
     @locked
-    async def all_off(self, query_zone_states: bool = True) -> ZoneAllOff:
-        all_off = await self._connection.send_message("ALLOFF", ZONE_ALL_OFF)
-        if query_zone_states:
-            loop = asyncio.get_running_loop()
-            loop.call_later(1, lambda: loop.create_task(self._get_zone_states()))
-        return all_off
+    async def all_off(self) -> ZoneAllOff:
+        return await self._connection.send_message("ALLOFF", ZONE_ALL_OFF)
 
     @locked
     async def get_version(self) -> Version:
