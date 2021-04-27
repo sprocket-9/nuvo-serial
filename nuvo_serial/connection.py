@@ -481,7 +481,7 @@ class AsyncConnection:
             pass
         except SerialException:
             """
-            There's a serious problem reading from the serial port read buffer.  
+            There's a serious problem reading from the serial port read buffer.
             Often happens if there's been two processes trying to use the serial port
             at the same time and StreamReader gets into an unrecoverable state.
 
@@ -536,14 +536,17 @@ class AsyncConnection:
             )
 
     async def _streaming_reader(self) -> None:
-        """Monitor the Stream for known nuvo messages. 
+        """Monitor the Stream for known nuvo messages.
         Classifies and emits the message to any registered listeners.
-        Designed to run as a background task when there is no command waiting for a 
-        response and will receive messages sent by the Nuvo in response to Zone keypad 
-        inputs. 
+        Designed to run as a background task when there is no command waiting for a
+        response and will receive messages sent by the Nuvo in response to Zone keypad
+        inputs.
         Run this as a Task that can be stopped with task.cancel()
         """
         while True:
+
+            await asyncio.sleep(0)
+
             try:
                 message = await self._read_message_from_buffer()
                 processed_type, data = process_message(self._model, message)
@@ -571,7 +574,6 @@ class AsyncConnection:
                     "STREAMINGREADER: MessageClassificationError: %s", repr(exc)
                 )
 
-    # async def _message_response_reader(self, message_types: Tuple[NuvoMsgType, ...]) -> Tuple[str, NuvoClass]:
     async def _message_response_reader(
         self, message_types: Tuple[str, ...]
     ) -> Tuple[str, NuvoClass]:
@@ -583,62 +585,48 @@ class AsyncConnection:
         match: Tuple[str, NuvoClass]
         # match: Tuple[NuvoMsgType, NuvoClass]
         found_match = False
+        first_attempt = True
 
         while not found_match:
+            # Essential to give up control to the event loop here so the outer
+            # task can check its timout timer, otherwise the while loop can
+            # often prevent this happening, even if an Exception is raised
+            # somewhere in here.
+            if not first_attempt:
+                await asyncio.sleep(0)
+
+            first_attempt = False
+
+            message = await self._read_message_from_buffer()
+
+            # A message with the correct Nuvo message format was retrieved from the
+            # stream, now process it looking for the message_type
             try:
-                message = await self._read_message_from_buffer()
-            except asyncio.CancelledError:
-                _LOGGER.debug(
-                    "RESPONSEREADER: CancelledError inner task cancel request caught"
-                )
-                """
-                Always reraise the CancelledError so the canceller can check the status
-                """
-                raise
-            except SerialException as exc:
-                _LOGGER.debug("RESPONSEREADER: SerialException: %s", exc)
-                # await asyncio.sleep(1)
-                raise
-            except MessageFormatError as exc:
-                _LOGGER.warning(
-                    "RESPONSEREADER: Garbled message found in stream, possible multiple access on serial port: %s",
-                    exc,
-                )
-            except Exception as exc:
-                _LOGGER.exception(
-                    "RESPONSEREADER: Unknown Exception raised from buffer read"
-                )
-                await asyncio.sleep(1)
+                processed_type, d_class = process_message(self._model, message)
+            except MessageClassificationError as exc:
+                # There may well be propely formatted messages that cannot be classified yet as
+                # a handler hasn't been implemented, this is not an anomalous condition
+                _LOGGER.debug("RESPONSEREADER: MessageClassificationError: %s", exc)
             else:
-                # A message with the correct Nuvo message format was retrieved from the
-                # stream, now process it looking for the message_type
-                try:
-                    processed_type, d_class = process_message(self._model, message)
-                except MessageClassificationError as exc:
-                    # There may well be propely formatted messages that cannot be classified yet as
-                    # a handler hasn't been implemented, this is not an anomalous condition
-                    _LOGGER.debug("RESPONSEREADER: MessageClassificationError: %s", exc)
+                # There message has been classified but it may not be the wanted
+                # message_type
+                if processed_type in message_types:
+                    _LOGGER.debug(
+                        "RESPONSEREADER: Found matching response: %s", d_class
+                    )
+                    found_match = True
+                    match = (processed_type, d_class)
+                    break
                 else:
-                    # There message has been classified but it may not be the wanted
+                    # The message has been classified but it's not the wanted
                     # message_type
-                    # if processed_type == message_type:
-                    if processed_type in message_types:
-                        _LOGGER.debug(
-                            "RESPONSEREADER: Found matching response: %s", d_class
-                        )
-                        found_match = True
-                        match = (processed_type, d_class)
-                        break
-                    else:
-                        # The message has been classified but it's not the wanted
-                        # message_type
-                        _LOGGER.debug(
-                            "RESPONSEREADER: Mismatch Wanted %s but got %s %s reponse",
-                            repr(message_types),
-                            processed_type,
-                            d_class,
-                        )
-                        self._bus.emit_event(processed_type, d_class)
+                    _LOGGER.debug(
+                        "RESPONSEREADER: Mismatch Wanted %s but got %s %s reponse",
+                        repr(message_types),
+                        processed_type,
+                        d_class,
+                    )
+                    self._bus.emit_event(processed_type, d_class)
         return match
 
     async def _read_message_from_buffer(self) -> bytes:

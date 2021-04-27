@@ -7,7 +7,7 @@ from nuvo_serial import get_nuvo, get_nuvo_async
 from nuvo_serial.connection import SyncRequest, AsyncConnection
 from nuvo_serial.const import MODEL_GC
 from nuvo_serial.grand_concerto_essentia_g import NuvoAsync
-from nuvo_serial.message import process_message
+from nuvo_serial.message import format_message, process_message
 
 from tests.const import SYNC_PORT_URL, ASYNC_PORT_URL
 from tests.helper import find_response
@@ -59,7 +59,7 @@ def fake_buffer_read(monkeypatch):
 
 
 @pytest.fixture(scope="session")
-async def async_nuvo(event_loop):
+async def async_nuvo(event_loop, async_disconnect):
     """pyserial-asyncio as of v0.5 does not support loop:// style ports.  It relies
     on adding writer and reader callbacks to file descriptor activity - loop://
     is impelemented by pyserial using python in memory Queues which do not have FDs.
@@ -126,8 +126,12 @@ async def async_nuvo(event_loop):
     return _nuvo_async
 
 
-@pytest.fixture(scope="session", autouse=True)
-async def cleanup():
+@pytest.fixture(scope="session")
+async def async_disconnect():
+    """This will be autoused for sync and async and will fail if running a subset
+    of tests which d not contain an async test which uses the async_nuvo fixture.
+    """
+
     yield 1
     await _nuvo_async.disconnect()
 

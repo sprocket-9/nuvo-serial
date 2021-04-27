@@ -8,11 +8,11 @@ def find_response(msg, model):
     found_match = None
 
     for command, pattern in command_patterns[model].items():
-        if re.search(pattern, msg):
+        if re.match(pattern, msg):
             found_match = responses[model][command]
             break
 
     if not found_match:
-        raise Exception(f"Unhandled response for message request {msg}")
+        raise Exception(f"TEST_SUITE_PROBLEM - No regex found matching message request {msg}")
 
     return found_match
