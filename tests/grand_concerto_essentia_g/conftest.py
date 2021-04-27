@@ -5,7 +5,7 @@ import pytest
 
 from nuvo_serial import get_nuvo, get_nuvo_async
 from nuvo_serial.connection import SyncRequest, AsyncConnection
-from nuvo_serial.const import MODEL_GC
+from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G
 from nuvo_serial.grand_concerto_essentia_g import NuvoAsync
 from nuvo_serial.message import format_message, process_message
 
@@ -14,11 +14,12 @@ from tests.helper import find_response
 
 
 MODEL = MODEL_GC
+# MODEL = MODEL_ESSENTIA_G
 HOST = "127.0.0.1"
 PORT = 63321
 
 
-@pytest.fixture
+@pytest.fixture(params=[MODEL_GC, MODEL_ESSENTIA_G])
 def nuvo():
     return get_nuvo(SYNC_PORT_URL, MODEL)
 
@@ -57,7 +58,12 @@ def fake_buffer_read(monkeypatch):
 # def fake_version(monkeypatch):
 #     monkeypatch.setattr(NuvoAsync, "get_version", version)
 
+@pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
+def all_models():
+    pass
 
+
+# @pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
 @pytest.fixture(scope="session")
 async def async_nuvo(event_loop, async_disconnect):
     """pyserial-asyncio as of v0.5 does not support loop:// style ports.  It relies
@@ -126,6 +132,7 @@ async def async_nuvo(event_loop, async_disconnect):
     return _nuvo_async
 
 
+# @pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
 @pytest.fixture(scope="session")
 async def async_disconnect():
     """This will be autoused for sync and async and will fail if running a subset

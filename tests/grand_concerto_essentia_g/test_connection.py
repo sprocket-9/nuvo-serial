@@ -37,6 +37,7 @@ def async_mock_buffer_read(monkeypatch):
     )
 
 
+@pytest.mark.usefixtures("all_models")
 @pytest.mark.asyncio
 class TestAsyncConnection:
 

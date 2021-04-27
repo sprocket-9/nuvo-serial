@@ -1,5 +1,5 @@
 import re
-from nuvo_serial.const import MODEL_GC, RESPONSE_STRING_OK
+from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G, RESPONSE_STRING_OK
 from tests.const import ZONE, ZONE_OFF, ZONE_NUVONET_SOURCE, SOURCE, SOURCE_NUVONET
 
 command_patterns: dict = {MODEL_GC: {}}
@@ -243,3 +243,7 @@ grand_concerto_responses["zone_button_prev"] = "#Z{}S{}PREV".format(ZONE, SOURCE
 grand_concerto_responses["zone_button_play_pause"] = "#Z{}S{}PLAYPAUSE".format(
     ZONE, SOURCE
 )
+
+#
+command_patterns[MODEL_ESSENTIA_G] = command_patterns[MODEL_GC]
+responses[MODEL_ESSENTIA_G] = responses[MODEL_GC]

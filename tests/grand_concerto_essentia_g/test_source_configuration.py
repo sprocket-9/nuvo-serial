@@ -52,7 +52,7 @@ class TestSourceConfiguration:
         assert asdict(response) == asdict(source_short_name)
 
 
-@pytest.mark.usefixtures("fake_buffer_read")
+@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 @pytest.mark.asyncio
 class TestAsyncSourceConfiguration:
 

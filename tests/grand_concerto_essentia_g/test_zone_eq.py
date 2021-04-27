@@ -48,7 +48,7 @@ class TestZoneEQ:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("fake_buffer_read")
+@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 class TestAsyncZoneEQ:
     async def test_async_zone_eq_status(self, async_nuvo):
         response = await async_nuvo.zone_eq_status(ZONE)
