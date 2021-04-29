@@ -284,7 +284,7 @@ class NuvoAsync:
 
     async def _get_source_configurations(self) -> None:
         for source in SOURCE_RANGE:
-            await self.source_status(source)
+            await self.source_configuration(source)
 
     """
     Zone Status Commands
@@ -411,9 +411,9 @@ class NuvoAsync:
 
     @locked
     @icontract.require(lambda source: source in SOURCE_RANGE)
-    async def source_status(self, source: int) -> SourceConfiguration:
+    async def source_configuration(self, source: int) -> SourceConfiguration:
         return await self._connection.send_message(
-            _format_source_status_request(source), SOURCE_CONFIGURATION
+            _format_source_configuration_request(source), SOURCE_CONFIGURATION
         )
 
     @locked
@@ -841,10 +841,10 @@ class NuvoSync:
 
     @icontract.require(lambda source: source in SOURCE_RANGE)
     @synchronized
-    def source_status(self, source: int) -> Optional[SourceConfiguration]:
+    def source_configuration(self, source: int) -> Optional[SourceConfiguration]:
         rtn: Optional[SourceConfiguration]
         rtn = self._retry_request(
-            _format_source_status_request(source), "Source Status", SourceConfiguration
+            _format_source_configuration_request(source), "Source Configuration", SourceConfiguration
         )
         return rtn
 
@@ -1126,7 +1126,7 @@ Source Commands Formats
 """
 
 
-def _format_source_status_request(source: int) -> str:
+def _format_source_configuration_request(source: int) -> str:
     return "SCFG{}STATUS?".format(int(source))
 
 

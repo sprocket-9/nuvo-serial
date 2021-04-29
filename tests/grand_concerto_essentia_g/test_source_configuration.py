@@ -32,7 +32,7 @@ source_short_name = replace(source_baseline, short_name="ABC")
 @pytest.mark.usefixtures("mock_return_value")
 class TestSourceConfiguration:
     def test_source_configuration_status(self, nuvo):
-        response = nuvo.source_status(SOURCE)
+        response = nuvo.source_configuration(SOURCE)
         assert asdict(response) == asdict(source_baseline)
 
     def test_source_configuration_set_name(self, nuvo):
@@ -57,7 +57,7 @@ class TestSourceConfiguration:
 class TestAsyncSourceConfiguration:
 
     async def test_async_source_configuration_status(self, async_nuvo):
-        response = await async_nuvo.source_status(SOURCE)
+        response = await async_nuvo.source_configuration(SOURCE)
         assert asdict(response) == asdict(source_baseline)
 
     async def test_async_source_configuration_set_name(self, async_nuvo):

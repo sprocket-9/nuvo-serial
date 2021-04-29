@@ -87,10 +87,10 @@ CONCERTO_ZONE_CONFIGURATION_ENABLED_PATTERN = re.compile(
     r"SLAVEEQ(?P<slave_eq>\d+)"
 )
 
-CONCERTO_SOURCE_STATUS_DISABLED_PATTERN = re.compile(
+CONCERTO_SOURCE_CONFIGURATION_DISABLED_PATTERN = re.compile(
     r"#SCFG(?P<source>\d)," r"ENABLE(?P<enabled>0)"
 )
-CONCERTO_SOURCE_STATUS_ENABLED_PATTERN = re.compile(
+CONCERTO_SOURCE_CONFIGURATION_ENABLED_PATTERN = re.compile(
     r"#SCFG(?P<source>\d),"
     r"ENABLE(?P<enabled>0|1),"
     r"NAME\"(?P<name>.+)?\","
@@ -503,15 +503,15 @@ class SourceConfiguration:
     def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
         found_match = None
 
-        match = re.search(CONCERTO_SOURCE_STATUS_ENABLED_PATTERN, response_string)
+        match = re.search(CONCERTO_SOURCE_CONFIGURATION_ENABLED_PATTERN, response_string)
 
         if match:
-            _LOGGER.debug("CONCERTO_SOURCE_STATUS_ENABLED_PATTERN - Match")
+            _LOGGER.debug("CONCERTO_SOURCE_CONFIGURATION_ENABLED_PATTERN - Match")
             found_match = match
         else:
-            match = re.search(CONCERTO_SOURCE_STATUS_DISABLED_PATTERN, response_string)
+            match = re.search(CONCERTO_SOURCE_CONFIGURATION_DISABLED_PATTERN, response_string)
             if match:
-                _LOGGER.debug("CONCERTO_SOURCE_STATUS_DISABLED_PATTERN - Match")
+                _LOGGER.debug("CONCERTO_SOURCE_CONFIGURATION_DISABLED_PATTERN - Match")
                 found_match = match
 
         return found_match
