@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import asyncio
-from asyncio.exceptions import IncompleteReadError, LimitOverrunError, TimeoutError
+from asyncio.exceptions import TimeoutError
 
 import serial_asyncio
 import logging
@@ -9,16 +9,12 @@ import re
 import serial  # type: ignore
 from typing import (
     Any,
-    Awaitable,
     Callable,
     Coroutine,
     Literal,
     Optional,
     overload,
-    Match,
     Tuple,
-    Type,
-    TypeVar,
     Union,
 )
 from functools import wraps
@@ -26,6 +22,7 @@ from threading import RLock
 import time
 from serial import SerialException
 from nuvo_serial.configuration import config
+from nuvo_serial.const import ERROR_RESPONSE
 from nuvo_serial.exceptions import (
     MessageClassificationError,
     MessageFormatError,
@@ -604,12 +601,17 @@ class AsyncConnection:
             try:
                 processed_type, d_class = process_message(self._model, message)
             except MessageClassificationError as exc:
-                # There may well be propely formatted messages that cannot be classified yet as
-                # a handler hasn't been implemented, this is not an anomalous condition
+                # There may well be propely formatted messages that cannot be
+                # classified yet as a handler hasn't been implemented, this is
+                # not an anomalous condition
                 _LOGGER.debug("RESPONSEREADER: MessageClassificationError: %s", exc)
             else:
                 # There message has been classified but it may not be the wanted
                 # message_type
+                if processed_type == ERROR_RESPONSE:
+                    err_msg = "Message produced an error response from the Nuvo controller"
+                    _LOGGER.debug("RESPONSEREADER: MessageResponseError: %s", err_msg)
+                    raise MessageResponseError(err_msg)
                 if processed_type in message_types:
                     _LOGGER.debug(
                         "RESPONSEREADER: Found matching response: %s", d_class

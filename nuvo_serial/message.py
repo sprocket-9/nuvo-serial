@@ -21,6 +21,7 @@ from typing import (
 from nuvo_serial.const import (
     MODEL_GC,
     MODEL_ESSENTIA_G,
+    ERROR_RESPONSE,
     OK_RESPONSE,
     ZONE_ALL_OFF,
     ZONE_BUTTON,
@@ -116,6 +117,9 @@ CONCERTO_ZONE_ALL_OFF = re.compile(
     r"#ALLOFF$"
 )
 
+CONCERTO_ERROR_RESPONSE = re.compile(
+    r"#\?$"
+)
 CONCERTO_OK_RESPONSE = re.compile(
     r"#OK$"
 )
@@ -189,6 +193,27 @@ class Paging:
             return None
 
         return Paging(bool(int(match.group("page"))))
+
+
+@dataclass
+class ErrorResponse:
+    error_response: bool
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        return re.search(CONCERTO_ERROR_RESPONSE, response_string)
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[ErrorResponse]:
+        if not response_string:
+            return None
+
+        match = cls._parse_response(response_string)
+
+        if not match:
+            return None
+
+        return ErrorResponse(error_response=True)
 
 
 @dataclass
@@ -601,6 +626,7 @@ class ZoneButton:
 
 
 NuvoClass = Union[
+    ErrorResponse,
     OKResponse,
     ZoneAllOff,
     ZoneStatus,
@@ -614,6 +640,7 @@ NuvoClass = Union[
 
 MSG_CLASSES = {
     MODEL_GC: {
+        ERROR_RESPONSE: ErrorResponse,
         OK_RESPONSE: OKResponse,
         ZONE_ALL_OFF: ZoneAllOff,
         ZONE_STATUS: ZoneStatus,

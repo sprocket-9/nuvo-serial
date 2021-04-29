@@ -3,6 +3,7 @@ from typing import Final
 MODEL_GC: Final = "Grand_Concerto"
 MODEL_ESSENTIA_G: Final = "Essentia_G"
 
+ERROR_RESPONSE: Final = "ErrorResponse"
 OK_RESPONSE: Final = "OKResponse"
 SOURCE_CONFIGURATION: Final = "SourceConfiguration"
 SYSTEM_VERSION: Final = "Version"
@@ -26,3 +27,4 @@ ZONE_BUTTON_TRANSFORM = {
 }
 
 RESPONSE_STRING_OK = "#OK"
+RESPONSE_STRING_ERROR = "#?"
