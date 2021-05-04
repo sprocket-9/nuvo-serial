@@ -32,9 +32,9 @@ shown, but there are methods to configure most fields in each of the data classe
 ```python
 from nuvo_serial import get_nuvo
 
-nuvo = get_nuvo(port='/dev/ttyUSB0', model='Grand_Concerto')
+nuvo = get_nuvo(port_url='/dev/ttyUSB0', model='Grand_Concerto')
 
-print(await nuvo.get_version()
+print(nuvo.get_version()
 # Version(model='Grand_Concerto', product_number='NV-I8G', firmware_version='FWv2.66', hardware_version='HWv0')
 
 print(nuvo.zone_status(1))
