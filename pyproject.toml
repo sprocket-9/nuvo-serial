@@ -1,9 +1,12 @@
 [tool.poetry]
 name = "nuvo-serial"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python API implementing the Nuvo Grand Concerto/Essentia G multi-zone audio amplifier serial control protocol"
 authors = ["sprocket-9 <sprocketnumber9@gmail.com>"]
 license = "MIT"
+readme = "README.md"
+homepage = "https://github.com/sprocket-9/nuvo-serial"
+repository = "https://github.com/sprocket-9/nuvo-serial"
 
 [tool.poetry.dependencies]
 python = "^3.8"
