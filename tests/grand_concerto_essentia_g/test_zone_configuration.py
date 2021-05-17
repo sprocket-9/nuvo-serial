@@ -1,6 +1,6 @@
 from dataclasses import asdict, replace
 import pytest
-from tests.const import ZONE
+from tests.const import ZONE, ZONE_MASTER
 from nuvo_serial.message import ZoneConfiguration
 
 
@@ -21,6 +21,7 @@ zone_baseline = ZoneConfiguration(
 zone_sources = replace(zone_baseline, sources=['SOURCE6'])
 zone_dnd = replace(zone_baseline, dnd=['NOMUTE'])
 zone_name = replace(zone_baseline, name="Office")
+zone_slave_to = replace(zone_baseline, slave_to=ZONE_MASTER)
 
 
 @pytest.mark.usefixtures("mock_return_value")
@@ -41,6 +42,10 @@ class TestZoneConfiguration:
         response = nuvo.zone_set_name(ZONE, "Office")
         assert asdict(response) == asdict(zone_name)
 
+    def test_zone_configuration_slave_to(self, nuvo):
+        response = nuvo.zone_slave_to(ZONE, ZONE_MASTER)
+        assert asdict(response) == asdict(zone_slave_to)
+
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("fake_buffer_read", "all_models")
@@ -60,3 +65,7 @@ class TestAsyncZoneConfiguration:
     async def test_async_zone_configuration_set_name(self, async_nuvo):
         response = await async_nuvo.zone_set_name(ZONE, "Office")
         assert asdict(response) == asdict(zone_name)
+
+    async def test_async_zone_configuration_slave_to(self, async_nuvo):
+        response = await async_nuvo.zone_slave_to(ZONE, ZONE_MASTER)
+        assert asdict(response) == asdict(zone_slave_to)
