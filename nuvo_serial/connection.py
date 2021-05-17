@@ -34,6 +34,7 @@ from nuvo_serial.message import (
     process_message,
     OKResponse,
     Paging,
+    Party,
     SourceConfiguration,
     ZoneAllOff,
     ZoneButton,
@@ -328,6 +329,12 @@ class AsyncConnection:
     async def send_message(
         self, msg: str, message_types: Literal["Paging"],
     ) -> Paging:
+        ...
+
+    @overload
+    async def send_message(
+        self, msg: str, message_types: Literal["Party"],
+    ) -> Party:
         ...
 
     @overload

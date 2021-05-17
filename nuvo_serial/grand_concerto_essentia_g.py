@@ -35,6 +35,7 @@ from nuvo_serial.const import (
     ZONE_BUTTON_PREV,
     ZONE_BUTTON_NEXT,
     SYSTEM_PAGING,
+    SYSTEM_PARTY,
     SYSTEM_VERSION,
     OK_RESPONSE,
 )
@@ -43,6 +44,7 @@ from nuvo_serial.message import (
     DndMask,
     OKResponse,
     Paging,
+    Party,
     SourceConfiguration,
     SourceMask,
     ZoneAllOff,
@@ -659,6 +661,13 @@ class NuvoAsync:
     async def get_version(self) -> Version:
         return await self._connection.send_message("VER", SYSTEM_VERSION)
 
+    @locked
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    async def set_party_host(self, zone: int, enable: bool) -> Party:
+        return await self._connection.send_message(
+            _format_set_party_host(zone, enable), SYSTEM_PARTY
+        )
+
 
 class NuvoSync:
     def __init__(self, port_url: str, model: str, retries: Optional[int] = None):
@@ -1075,6 +1084,17 @@ class NuvoSync:
         rtn = self._retry_request("VER", "Request Version", Version)
         return rtn
 
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    @synchronized
+    def set_party_host(self, zone: int, enable: bool) -> Optional[Party]:
+        rtn: Optional[Party]
+        rtn = self._retry_request(
+            _format_set_party_host(zone, enable),
+            "Party Host",
+            Party
+        )
+        return rtn
+
 
 def _is_int(s: Union[int, float, str]) -> bool:
     try:
@@ -1091,6 +1111,9 @@ System Command Formas
 
 def _format_set_page(page: bool) -> str:
     return "PAGE{}".format(int(page))
+
+def _format_set_party_host(zone: int, enable: bool) -> str:
+    return "Z{}PARTY{}".format(zone, int(enable))
 
 
 """

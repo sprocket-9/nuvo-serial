@@ -262,6 +262,14 @@ grand_concerto_responses["zone_button_play_pause"] = "#Z{}S{}PLAYPAUSE".format(
     ZONE, SOURCE
 )
 
+"""
+Party
+"""
+grand_concerto_patterns["party_host"] = re.compile(
+    r"Z{}PARTY1$".format(ZONE)
+)
+grand_concerto_responses["party_host"] = "#Z{},PARTY1".format(ZONE)
+
 #
 command_patterns[MODEL_ESSENTIA_G] = command_patterns[MODEL_GC]
 responses[MODEL_ESSENTIA_G] = responses[MODEL_GC]

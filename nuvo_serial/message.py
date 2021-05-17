@@ -26,6 +26,7 @@ from nuvo_serial.const import (
     ZONE_ALL_OFF,
     ZONE_BUTTON,
     ZONE_CONFIGURATION,
+    SYSTEM_PARTY,
     ZONE_VOLUME_CONFIGURATION,
     ZONE_EQ_STATUS,
     ZONE_STATUS,
@@ -126,6 +127,8 @@ CONCERTO_OK_RESPONSE = re.compile(
 
 CONCERTO_PAGE_RESPONSE = re.compile(r"#PAGE(?P<page>0|1)$")
 
+CONCERTO_PARTY_RESPONSE = re.compile(r"#Z(?P<zone>\d+),PARTY(?P<party_host>0|1)$")
+
 
 class FlagHelper(Flag):
     def to_list(self) -> List[str]:
@@ -172,6 +175,31 @@ class DndMask(FlagHelper, Flag):
     NOMUTE = auto()
     NOPAGE = auto()
     NOPARTY = auto()
+
+
+@dataclass
+class Party:
+    zone: int
+    party_host: bool
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        return re.search(CONCERTO_PARTY_RESPONSE, response_string)
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[Party]:
+        if not response_string:
+            return None
+
+        match = cls._parse_response(response_string)
+
+        if not match:
+            return None
+
+        return Party(
+            zone=int(match.group("zone")),
+            party_host=bool(int(match.group("party_host")))
+        )
 
 
 @dataclass
@@ -628,6 +656,8 @@ class ZoneButton:
 NuvoClass = Union[
     ErrorResponse,
     OKResponse,
+    Paging,
+    Party,
     ZoneAllOff,
     ZoneStatus,
     ZoneEQStatus,
@@ -649,6 +679,7 @@ MSG_CLASSES = {
         SOURCE_CONFIGURATION: SourceConfiguration,
         ZONE_VOLUME_CONFIGURATION: ZoneVolumeConfiguration,
         ZONE_BUTTON: ZoneButton,
+        SYSTEM_PARTY: Party,
         SYSTEM_PAGING: Paging,
         SYSTEM_VERSION: Version,
     }
@@ -666,6 +697,7 @@ MSG_CLASS_KEYS = {
     SOURCE_CONFIGURATION: "source",
     ZONE_VOLUME_CONFIGURATION: "zone",
     ZONE_BUTTON: "zone",
+    SYSTEM_PARTY: "system",
     SYSTEM_PAGING: "system",
     SYSTEM_VERSION: "system",
 }
@@ -676,19 +708,24 @@ MSG_CLASS_TRACK = {
         ZONE_EQ_STATUS,
         ZONE_CONFIGURATION,
         SOURCE_CONFIGURATION,
+        SYSTEM_PARTY,
         ZONE_VOLUME_CONFIGURATION,
         SYSTEM_PAGING,
         SYSTEM_VERSION
     ]
 }
 
+MSG_CLASS_TRACK[MODEL_ESSENTIA_G] = MSG_CLASS_TRACK[MODEL_GC]
+
 MSG_CLASS_QUERY_ZONE_STATUS = {
     MODEL_GC: [
         ZONE_ALL_OFF,
+        SYSTEM_PARTY,
         SYSTEM_PAGING
     ]
 }
 
+MSG_CLASS_QUERY_ZONE_STATUS[MODEL_ESSENTIA_G] =  MSG_CLASS_QUERY_ZONE_STATUS[MODEL_GC]
 
 def process_message(model: str, message: bytes) -> Tuple[str, NuvoClass]:
     """
