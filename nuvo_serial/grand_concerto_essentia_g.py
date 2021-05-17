@@ -142,6 +142,13 @@ def _set_model_globals(model: str) -> None:
         config[model]["zones"]["slave_to"]["step"],
     )
 
+    global GROUP_RANGE
+    GROUP_RANGE = range(
+        config[model]["zones"]["group"]["min"],
+        config[model]["zones"]["group"]["max"] + 1,
+        config[model]["zones"]["group"]["step"],
+    )
+
 class NuvoAsync:
     def __init__(
         self,
@@ -417,6 +424,14 @@ class NuvoAsync:
     async def zone_slave_to(self, slave_zone: int, master_zone: int) -> ZoneConfiguration:
         return await self._connection.send_message(
             _format_zone_slave_to(slave_zone, master_zone), ZONE_CONFIGURATION,
+        )
+
+    @locked
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    @icontract.require(lambda group: group in GROUP_RANGE)
+    async def zone_join_group(self, zone: int, group: int) -> ZoneConfiguration:
+        return await self._connection.send_message(
+            _format_zone_join_group(zone, group), ZONE_CONFIGURATION,
         )
 
     """
@@ -859,6 +874,16 @@ class NuvoSync:
         )
         return rtn
 
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    @icontract.require(lambda group: group in GROUP_RANGE)
+    @synchronized
+    def zone_join_group(self, zone: int, group: int) -> Optional[ZoneConfiguration]:
+        rtn: Optional[ZoneConfiguration]
+        rtn = self._retry_request(
+            _format_zone_join_group(zone, group), "Zone Slave To", ZoneConfiguration,
+        )
+        return rtn
+
     """
     Source Configuration Commands
     """
@@ -1146,6 +1171,9 @@ def _format_zone_set_name(zone: int, name: str) -> str:
 
 def _format_zone_slave_to(slave_zone: int, master_zone: int) -> str:
     return 'ZCFG{}SLAVETO{}'.format(slave_zone, master_zone)
+
+def _format_zone_join_group(zone: int, group: int) -> str:
+    return 'ZCFG{}GROUP{}'.format(zone, group)
 
 """
 Source Commands Formats
