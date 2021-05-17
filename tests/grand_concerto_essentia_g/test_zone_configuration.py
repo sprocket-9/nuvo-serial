@@ -15,7 +15,7 @@ zone_baseline = ZoneConfiguration(
     ir_enabled=0,
     dnd=['NOMUTE', 'NOPAGE', 'NOPARTY'],
     locked=False,
-    slave_eq=0
+    slave_eq=False
 )
 
 zone_sources = replace(zone_baseline, sources=['SOURCE6'])

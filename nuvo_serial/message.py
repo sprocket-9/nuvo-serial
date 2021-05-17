@@ -84,7 +84,7 @@ CONCERTO_ZONE_CONFIGURATION_ENABLED_PATTERN = re.compile(
     r"IR(?P<ir>\d),"
     r"DND(?P<dnd>\d),"
     r"LOCKED(?P<locked>0|1),"
-    r"SLAVEEQ(?P<slave_eq>\d+)"
+    r"SLAVEEQ(?P<slave_eq>\d)"
 )
 
 CONCERTO_SOURCE_CONFIGURATION_DISABLED_PATTERN = re.compile(
@@ -420,7 +420,7 @@ class ZoneConfiguration:
     ir_enabled: Optional[int] = None
     dnd: Optional[list[str]] = None
     locked: Optional[bool] = None
-    slave_eq: Optional[int] = None
+    slave_eq: Optional[bool] = None
 
     @classmethod
     def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
@@ -473,7 +473,7 @@ class ZoneConfiguration:
             z_ir_enabled = int(zone_values.group("ir"))
             z_dnd = DndMask(int(zone_values.group("dnd"))).to_list()
             z_locked = bool(int(zone_values.group("locked")))
-            z_slave_eq = int(zone_values.group("slave_eq"))
+            z_slave_eq = bool(int(zone_values.group("slave_eq")))
 
         return ZoneConfiguration(
             z_zone,
