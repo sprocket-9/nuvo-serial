@@ -434,6 +434,13 @@ class NuvoAsync:
             _format_zone_join_group(zone, group), ZONE_CONFIGURATION,
         )
 
+    @locked
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    async def zone_enable(self, zone: int, enable: bool) -> ZoneConfiguration:
+        return await self._connection.send_message(
+            _format_zone_enable(zone, enable), ZONE_CONFIGURATION,
+        )
+
     """
     Source Configuration Commands
     """
@@ -884,6 +891,15 @@ class NuvoSync:
         )
         return rtn
 
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    @synchronized
+    def zone_enable(self, zone: int, enable: bool) -> Optional[ZoneConfiguration]:
+        rtn: Optional[ZoneConfiguration]
+        rtn = self._retry_request(
+            _format_zone_enable(zone, enable), "Zone Slave To", ZoneConfiguration,
+        )
+        return rtn
+
     """
     Source Configuration Commands
     """
@@ -1174,6 +1190,10 @@ def _format_zone_slave_to(slave_zone: int, master_zone: int) -> str:
 
 def _format_zone_join_group(zone: int, group: int) -> str:
     return 'ZCFG{}GROUP{}'.format(zone, group)
+
+def _format_zone_enable(zone: int, enable: bool) -> str:
+    return "ZCFG{}ENABLE{}".format(zone, int(enable))
+
 
 """
 Source Commands Formats

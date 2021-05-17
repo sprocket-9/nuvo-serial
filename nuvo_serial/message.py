@@ -451,7 +451,7 @@ class ZoneConfiguration:
             return None
 
         z_enabled = False
-        z_name = ""
+        z_name = None
         z_slave_to = None
         z_group = None
         z_sources = None

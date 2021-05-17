@@ -103,6 +103,9 @@ grand_concerto_patterns["zone_configuration_slave_to"] = re.compile(
 grand_concerto_patterns["zone_configuration_join_group"] = re.compile(
     r"ZCFG(?P<zone>\d+)GROUP(?P<group>\d)$"
 )
+grand_concerto_patterns["zone_configuration_enable"] = re.compile(
+    r"ZCFG(?P<zone>\d+)ENABLE(?P<enable>\d)$"
+)
 
 zone_configuration_response_baseline = '#ZCFG1,ENABLE1,NAME"Kitchen",SLAVETO0,GROUP0,SOURCES17,XSRC0,IR0,DND7,LOCKED0,SLAVEEQ0'
 grand_concerto_responses["zone_configuration"] = zone_configuration_response_baseline
@@ -121,6 +124,9 @@ grand_concerto_responses[
 grand_concerto_responses[
     "zone_configuration_join_group"
 ] = '#ZCFG1,ENABLE1,NAME"Kitchen",SLAVETO0,GROUP1,SOURCES17,XSRC0,IR0,DND7,LOCKED0,SLAVEEQ0'
+grand_concerto_responses[
+    "zone_configuration_enable"
+] = '#ZCFG1,ENABLE0'
 
 """
 Source Configuration
