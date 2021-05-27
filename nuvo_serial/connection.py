@@ -22,7 +22,13 @@ from threading import RLock
 import time
 from serial import SerialException
 from nuvo_serial.configuration import config
-from nuvo_serial.const import ERROR_RESPONSE
+from nuvo_serial.const import (
+    EMIT_LEVEL_ALL,
+    EMIT_LEVEL_EXTERNAL,
+    EMIT_LEVEL_INTERNAL,
+    EMIT_LEVEL_NONE,
+    ERROR_RESPONSE,
+)
 from nuvo_serial.exceptions import (
     MessageClassificationError,
     MessageFormatError,
@@ -210,28 +216,64 @@ class SyncRequest:
 
 class MsgBus:
     def __init__(self) -> None:
+        self.emit_level = EMIT_LEVEL_ALL
         self.subscribers: dict[str, set[Callable[..., Coroutine]]] = {}
+        self.internal_subscribers: dict[str, set[Callable[..., Coroutine]]] = {}
 
     def add_subscriber(
-        self, subscriber: Callable[..., Coroutine], event_name: str
+        self,
+        subscriber: Callable[..., Coroutine],
+        event_name: str,
+        internal: bool = False,
     ) -> None:
-        if not self.subscribers.get(event_name, None):
-            self.subscribers[event_name] = {subscriber}
+        if internal:
+            if not self.internal_subscribers.get(event_name, None):
+                self.internal_subscribers[event_name] = {subscriber}
+            else:
+                self.internal_subscribers[event_name].add(subscriber)
         else:
-            self.subscribers[event_name].add(subscriber)
+            if not self.subscribers.get(event_name, None):
+                self.subscribers[event_name] = {subscriber}
+            else:
+                self.subscribers[event_name].add(subscriber)
 
     def remove_subscriber(
-        self, subscriber: Callable[..., Coroutine], event_name: str
+        self,
+        subscriber: Callable[..., Coroutine],
+        event_name: str,
+        internal: bool = False,
     ) -> None:
-        self.subscribers[event_name].remove(subscriber)
-        if len(self.subscribers[event_name]) == 0:
-            del self.subscribers[event_name]
 
-    # def emit_event(self, event_name: NuvoMsgType, event: NuvoClass) -> None:
-    def emit_event(self, event_name: str, event: NuvoClass) -> None:
+        if internal:
+            self.internal_subscribers[event_name].remove(subscriber)
+            if len(self.internal_subscribers[event_name]) == 0:
+                del self.internal_subscribers[event_name]
+        else:
+            self.subscribers[event_name].remove(subscriber)
+
+            if len(self.subscribers[event_name]) == 0:
+                del self.subscribers[event_name]
+
+    def set_emit_level(self, emit_level: str) -> None:
+        self.emit_level = emit_level
+
+    def emit_event(
+        self, event_name: str, event: NuvoClass) -> None:
         message = {"event_name": event_name, "event": event}
-        for subscriber in self.subscribers.get(event_name, set()):
-            asyncio.create_task(subscriber(message))
+        if self.emit_level == EMIT_LEVEL_NONE:
+            return
+
+        if (
+            self.emit_level == EMIT_LEVEL_INTERNAL or self.emit_level == EMIT_LEVEL_ALL
+        ):
+            for subscriber in self.internal_subscribers.get(event_name, set()):
+                asyncio.create_task(subscriber(message))
+
+        if (
+            self.emit_level == EMIT_LEVEL_EXTERNAL or self.emit_level == EMIT_LEVEL_ALL
+        ):
+            for subscriber in self.subscribers.get(event_name, set()):
+                asyncio.create_task(subscriber(message))
 
 
 class AsyncConnection:
@@ -326,15 +368,11 @@ class AsyncConnection:
         ...
 
     @overload
-    async def send_message(
-        self, msg: str, message_types: Literal["Paging"],
-    ) -> Paging:
+    async def send_message(self, msg: str, message_types: Literal["Paging"],) -> Paging:
         ...
 
     @overload
-    async def send_message(
-        self, msg: str, message_types: Literal["Party"],
-    ) -> Party:
+    async def send_message(self, msg: str, message_types: Literal["Party"],) -> Party:
         ...
 
     @overload
@@ -616,7 +654,9 @@ class AsyncConnection:
                 # There message has been classified but it may not be the wanted
                 # message_type
                 if processed_type == ERROR_RESPONSE:
-                    err_msg = "Message produced an error response from the Nuvo controller"
+                    err_msg = (
+                        "Message produced an error response from the Nuvo controller"
+                    )
                     _LOGGER.debug("RESPONSEREADER: MessageResponseError: %s", err_msg)
                     raise MessageResponseError(err_msg)
                 if processed_type in message_types:
