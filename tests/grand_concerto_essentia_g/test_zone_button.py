@@ -27,7 +27,6 @@ response_ok = OKResponse(ok_response=True)
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 class TestAsyncZoneConfiguration:
     async def test_async_zone_button_play_pause(self, async_nuvo):
         response = await async_nuvo.zone_button_play_pause(ZONE)

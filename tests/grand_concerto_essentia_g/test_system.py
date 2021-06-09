@@ -6,7 +6,6 @@ from nuvo_serial.message import Party
 
 party_host = Party(zone=ZONE, party_host=True)
 
-@pytest.mark.usefixtures("mock_return_value")
 class TestZoneConfiguration:
     def test_set_party_host(self, nuvo):
         response = nuvo.set_party_host(ZONE, True)
@@ -14,7 +13,6 @@ class TestZoneConfiguration:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 class TestAsyncZoneConfiguration:
     async def test_async_set_party_host(self, async_nuvo):
         response = await async_nuvo.set_party_host(ZONE, True)

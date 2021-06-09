@@ -29,7 +29,6 @@ source_nuvonet = replace(source_baseline, nuvonet_source=1)
 source_short_name = replace(source_baseline, short_name="ABC")
 
 
-@pytest.mark.usefixtures("mock_return_value")
 class TestSourceConfiguration:
     def test_source_configuration_status(self, nuvo):
         response = nuvo.source_configuration(SOURCE)
@@ -52,7 +51,6 @@ class TestSourceConfiguration:
         assert asdict(response) == asdict(source_short_name)
 
 
-@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 @pytest.mark.asyncio
 class TestAsyncSourceConfiguration:
 

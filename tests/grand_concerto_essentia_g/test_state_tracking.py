@@ -168,6 +168,7 @@ zone_states_mock_for_source_groups = mock.AsyncMock(
 )
 
 
+# @pytest.mark.usefixtures("all_models")
 @pytest.mark.asyncio
 class TestAsyncGroupTracking:
     """Tests for state tracking and the various nuvo groups tracking

@@ -29,7 +29,6 @@ zone_enable = ZoneConfiguration(
 )
 
 
-@pytest.mark.usefixtures("mock_return_value")
 class TestZoneConfiguration:
     def test_zone_configuration(self, nuvo):
         response = nuvo.zone_configuration(ZONE)
@@ -61,7 +60,6 @@ class TestZoneConfiguration:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 class TestAsyncZoneConfiguration:
     async def test_async_zone_configuration(self, async_nuvo):
         response = await async_nuvo.zone_configuration(ZONE)

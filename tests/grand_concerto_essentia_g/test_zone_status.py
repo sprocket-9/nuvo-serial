@@ -20,7 +20,6 @@ zone_dnd_on = replace(zone_baseline, dnd=True)
 zone_dnd_off = zone_baseline
 
 
-@pytest.mark.usefixtures("mock_return_value")
 class TestZoneStatus:
     def test_zone_status(self, nuvo):
         response = nuvo.zone_status(ZONE)
@@ -60,7 +59,6 @@ class TestZoneStatus:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 class TestAsyncZoneStatus:
     async def test_async_zone_status(self, async_nuvo):
         response = await async_nuvo.zone_status(ZONE)

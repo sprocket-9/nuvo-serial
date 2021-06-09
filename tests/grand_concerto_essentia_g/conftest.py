@@ -6,38 +6,36 @@ import pytest
 from nuvo_serial import get_nuvo, get_nuvo_async
 from nuvo_serial.connection import SyncRequest, AsyncConnection
 from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G
-from nuvo_serial.grand_concerto_essentia_g import NuvoAsync
+from nuvo_serial.grand_concerto_essentia_g import NuvoAsync, StateTrack
 from nuvo_serial.message import format_message, process_message
 
-from tests.const import SYNC_PORT_URL, ASYNC_PORT_URL
+from tests.const import SYNC_PORT_URL, ASYNC_PORT_URL, HOST
 from tests.helper import find_response
 
 
-MODEL = MODEL_GC
-# MODEL = MODEL_ESSENTIA_G
-HOST = "127.0.0.1"
-PORT = 63321
-
-
-@pytest.fixture(params=[MODEL_GC, MODEL_ESSENTIA_G])
-def nuvo():
-    return get_nuvo(SYNC_PORT_URL, MODEL)
+@pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
+def nuvo(request):
+    model = request.param
+    mpatch = pytest.MonkeyPatch()
+    mpatch.setattr(SyncRequest, "_process_request", mock_process_request)
+    return get_nuvo(SYNC_PORT_URL, model)
 
 
 async def buffer_read_for_send_message(self):
     """Fake the read from the serial device buffer by returning a response matching the
     request message."""
+
     if self._streaming_task.done():
         return find_response(self._message, self._model).encode() + self._eol
     else:
         await asyncio.sleep(10)
 
 
-@pytest.fixture
-def fake_buffer_read(monkeypatch):
-    monkeypatch.setattr(
-        AsyncConnection, "_read_message_from_buffer", buffer_read_for_send_message
-    )
+# @pytest.fixture
+# def fake_buffer_read(monkeypatch):
+#     monkeypatch.setattr(
+#         AsyncConnection, "_read_message_from_buffer", buffer_read_for_send_message
+#     )
 
 
 # async def version(self):
@@ -58,14 +56,28 @@ def fake_buffer_read(monkeypatch):
 # def fake_version(monkeypatch):
 #     monkeypatch.setattr(NuvoAsync, "get_version", version)
 
-@pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
-def all_models():
-    pass
-
 
 # @pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
-@pytest.fixture(scope="session")
-async def async_nuvo(event_loop, async_disconnect):
+# def all_models():
+#     pass
+
+
+class Input(asyncio.Protocol):
+    def __init__(self):
+        super().__init__()
+        self._transport = None
+
+    def connection_made(self, transport):
+        self._transport = transport
+
+    def data_received(self, data):
+        self._transport.write(data)
+
+
+@pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
+async def async_nuvo(request, event_loop, unused_tcp_port_factory):
+    """This fixture does NOT do state tracking."""
+
     """pyserial-asyncio as of v0.5 does not support loop:// style ports.  It relies
     on adding writer and reader callbacks to file descriptor activity - loop://
     is impelemented by pyserial using python in memory Queues which do not have FDs.
@@ -75,82 +87,114 @@ async def async_nuvo(event_loop, async_disconnect):
     reads will be faked with the monkeypatched _read_message_from_buffer.
     """
 
-    if ASYNC_PORT_URL.startswith("socket://"):
+    _nuvo_async = None
+    model = request.param
+    port = unused_tcp_port_factory()
+    port_url = f"socket://{HOST}:{port}"
 
-        class Input(asyncio.Protocol):
-            def __init__(self):
-                super().__init__()
-                self._transport = None
-
-            def connection_made(self, transport):
-                self._transport = transport
-
-            def data_received(self, data):
-                self._transport.write(data)
-
-        # class Output(asyncio.Protocol):
-
-        #     def __init__(self):
-        #         super().__init__()
-        #         self._transport = None
-
-        #     def connection_made(self, transport):
-        #         self._transport = transport
-        #         actions.append('open')
-        #         transport.write(TEXT)
-
-        #     def data_received(self, data):
-        #         received.append(data)
-        #         if b'\n' in data:
-        #             self._transport.close()
-
-        #     def connection_lost(self, exc):
-        #         actions.append('close')
-        #         self._transport.loop.stop()
-
-        #     def pause_writing(self):
-        #         actions.append('pause')
-        #         print(self._transport.get_write_buffer_size())
-
-        #     def resume_writing(self):
-        #         actions.append('resume')
-        #         print(self._transport.get_write_buffer_size())
-
-        await event_loop.create_server(
-            Input,
-            HOST,
-            PORT,
-            family=socket.AF_INET,
-            reuse_address=True,
-            reuse_port=True,
-        )
-
-    global _nuvo_async
-    _nuvo_async = await get_nuvo_async(
-        ASYNC_PORT_URL, MODEL, do_model_check=False, track_state=False, timeout=0.1, disconnect_time=0.1
+    await event_loop.create_server(
+        Input,
+        HOST,
+        port,
+        family=socket.AF_INET,
+        reuse_address=True,
+        reuse_port=True,
     )
-    return _nuvo_async
 
+    """
+    Can't use monkeypatch fixture as it's function scoped, while this fixture is
+    session scoped.  Pytest runs session scope fixtures before function scoped fixtures
+    meaning the monkeypatched fake_buffer_read isn't patched until after the async
+    session is complete - while this works for the other request/response async tests, the
+    state_tracking code makes nuvo requests during connection setup, therefore they
+    fail as the real _read_message_from_buffer function is being called, not the
+    monkeypatched version.
 
-# @pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
-@pytest.fixture(scope="session")
-async def async_disconnect():
-    """This will be autoused for sync and async and will fail if running a subset
-    of tests which d not contain an async test which uses the async_nuvo fixture.
+    The monkey patch fixture creates an instance of the MonkeyPatch under the hood, so
+    use it here directly to skip the fixture scope resolution rules.
     """
 
-    yield 1
+    mpatch = pytest.MonkeyPatch()
+    mpatch.setattr(
+        AsyncConnection, "_read_message_from_buffer", buffer_read_for_send_message
+    )
+
+    _nuvo_async = await get_nuvo_async(
+        port_url,
+        model,
+        do_model_check=False,
+        track_state=False,
+        timeout=0.1,
+        disconnect_time=0.1,
+    )
+
+    yield _nuvo_async
     await _nuvo_async.disconnect()
 
 
-def mock_process_request(cls, request_string):
+@pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
+async def async_nuvo_groups(request, event_loop, unused_tcp_port_factory):
+    """This fixture DOES do state tracking."""
+
+    """pyserial-asyncio as of v0.5 does not support loop:// style ports.  It relies
+    on adding writer and reader callbacks to file descriptor activity - loop://
+    is impelemented by pyserial using python in memory Queues which do not have FDs.
+
+    In order to test the lower level serial port handling code, need to create a
+    listening socket for the pyserial to connect to.  This allows writes to work and
+    reads will be faked with the monkeypatched _read_message_from_buffer.
+    """
+
+    _nuvo_async = None
+    model = request.param
+    port = unused_tcp_port_factory()
+    ASYNC_URL = f"socket://{HOST}:{port}"
+
+    await event_loop.create_server(
+        Input,
+        HOST,
+        port,
+        family=socket.AF_INET,
+        reuse_address=True,
+        reuse_port=True,
+    )
+
+    """
+    Can't use monkeypatch fixture as it's function scoped, while this fixture is
+    session scoped.  Pytest runs session scope fixtures before function scoped fixtures
+    meaning the monkeypatched fake_buffer_read isn't patched until after the async
+    session is complete - while this works for the other request/response async tests, the
+    state_tracking code makes nuvo requests during connection setup, therefore they
+    fail as the real _read_message_from_buffer function is being called, not the
+    monkeypatched version.
+
+    The monkey patch fixture creates an instance of the MonkeyPatch under the hood, so
+    use it here directly to skip the fixture scope resolution rules.
+    """
+    mpatch = pytest.MonkeyPatch()
+    mpatch.setattr(StateTrack, "get_initial_states", get_initial_states)
+
+    _nuvo_async = await get_nuvo_async(
+        ASYNC_URL,
+        model,
+        do_model_check=False,
+        track_state=True,
+        timeout=0.1,
+        disconnect_time=0.1,
+    )
+
+    yield _nuvo_async
+    await _nuvo_async.disconnect()
+
+
+def mock_process_request(self, request_string):
     """Bypass process_request by returning a response matching the request."""
-    return find_response(request_string, MODEL)
+    return find_response(request_string, self.model)
 
 
-@pytest.fixture
-def mock_return_value(monkeypatch):
-    monkeypatch.setattr(SyncRequest, "_process_request", mock_process_request)
+# @pytest.fixture
+# def mock_return_value(monkeypatch):
+#     monkeypatch.setattr(SyncRequest, "_process_request", mock_process_request)
 
 
 @pytest.fixture(scope="session")
@@ -162,25 +206,9 @@ def event_loop():
     loop.close()
 
 
-async def mock_send_message(self, msg, message_types):
-    """Bypass send_message by returning a response matching the request."""
-    response = find_response(msg, MODEL)
-    return process_message(MODEL, response.encode())[1]
+async def get_initial_states(self) -> None:
+    """Bypass initial state query when state tracking.
+    Tests should set state_tracker._state attribute directly.
+    """
 
-
-@pytest.fixture
-def async_mock_return_value(monkeypatch):
-    monkeypatch.setattr(AsyncConnection, "send_message", mock_send_message)
-
-
-# async def mock_connect(self):
-#     pass
-
-
-# @pytest.fixture
-# def async_mock_connect(monkeypatch):
-#     """Only needed to prevent the "Task was destroyed but it is pending" Exception
-#     being raised at the end of the tests due to the streaming_reader task still
-#     running
-#     """
-#     monkeypatch.setattr(AsyncConnection, "connect", mock_connect)
+    self._initial_state_retrieval_completed = True

@@ -16,7 +16,6 @@ zone_balance_C = replace(zone_baseline, balance_position='C', balance=0)
 zone_loudcmp = replace(zone_baseline, loudcmp=False)
 
 
-@pytest.mark.usefixtures("mock_return_value")
 class TestZoneEQ:
     def test_zone_eq_status(self, nuvo):
         response = nuvo.zone_eq_status(ZONE)
@@ -48,7 +47,6 @@ class TestZoneEQ:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 class TestAsyncZoneEQ:
     async def test_async_zone_eq_status(self, async_nuvo):
         response = await async_nuvo.zone_eq_status(ZONE)

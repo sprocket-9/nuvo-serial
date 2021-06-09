@@ -15,7 +15,6 @@ zone_party = replace(zone_baseline, party_vol=55)
 zone_reset = replace(zone_baseline, vol_rst=True)
 
 
-@pytest.mark.usefixtures("mock_return_value")
 class TestZoneVolumeConfiguration:
     def test_zone_volume_configuration(self, nuvo):
         response = nuvo.zone_volume_configuration(ZONE)
@@ -43,12 +42,10 @@ class TestZoneVolumeConfiguration:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("fake_buffer_read", "all_models")
 class TestAsyncZoneVolumeConfiguration:
     async def test_async_zone_volume_configuration(self, async_nuvo):
         response = await async_nuvo.zone_volume_configuration(ZONE)
         assert asdict(response) == asdict(zone_baseline)
-        # await async_nuvo._connection._stop_streaming_reader()
 
     async def test_async_zone_volume_max(self, async_nuvo):
         response = await async_nuvo.zone_volume_max(ZONE, 22)
