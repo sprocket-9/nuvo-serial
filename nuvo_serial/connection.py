@@ -258,19 +258,24 @@ class MsgBus:
         self.emit_level = emit_level
 
     def emit_event(
-        self, event_name: str, event: NuvoClass) -> None:
+            self, event_name: str, event: NuvoClass, emit_level: Optional[str] = None) -> None:
         message = {"event_name": event_name, "event": event}
-        if self.emit_level == EMIT_LEVEL_NONE:
+        if not emit_level:
+            emit_level = self.emit_level
+
+        _LOGGER.debug("MSGBUS: emit_level: %s", self.emit_level)
+
+        if emit_level == EMIT_LEVEL_NONE:
             return
 
         if (
-            self.emit_level == EMIT_LEVEL_INTERNAL or self.emit_level == EMIT_LEVEL_ALL
+            emit_level == EMIT_LEVEL_INTERNAL or emit_level == EMIT_LEVEL_ALL
         ):
             for subscriber in self.internal_subscribers.get(event_name, set()):
                 asyncio.create_task(subscriber(message))
 
         if (
-            self.emit_level == EMIT_LEVEL_EXTERNAL or self.emit_level == EMIT_LEVEL_ALL
+            emit_level == EMIT_LEVEL_EXTERNAL or emit_level == EMIT_LEVEL_ALL
         ):
             for subscriber in self.subscribers.get(event_name, set()):
                 asyncio.create_task(subscriber(message))
@@ -389,7 +394,7 @@ class AsyncConnection:
 
     @overload
     async def send_message(
-        self, msg: str, message_types: Literal["ZoneStatus"]
+            self, msg: str, message_types: Literal["ZoneStatus"], emit_level: Optional[str] = EMIT_LEVEL_ALL
     ) -> ZoneStatus:
         ...
 
@@ -420,7 +425,8 @@ class AsyncConnection:
         # self, msg: str, message_types: Union[NuvoMsgType, Tuple[NuvoMsgType, ...]]
 
     async def send_message(
-        self, msg: str, message_types: Union[NuvoMsgType, Tuple[NuvoMsgType, ...]]
+        self, msg: str, message_types: Union[NuvoMsgType, Tuple[NuvoMsgType, ...]],
+        emit_level: Optional[str] = EMIT_LEVEL_ALL
     ) -> NuvoClass:
         """Send a message to the Nuvo and wait for a response."""
 
@@ -492,7 +498,7 @@ class AsyncConnection:
             )
         else:
             self._start_streaming_reader()
-            self._bus.emit_event(response[0], response[1])
+            self._bus.emit_event(response[0], response[1], emit_level)
             return response[1]
 
     async def _send(self, message: bytes) -> None:

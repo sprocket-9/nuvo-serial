@@ -34,6 +34,3 @@ EMIT_LEVEL_ALL = "emit_all"
 EMIT_LEVEL_EXTERNAL = "emit_external"
 EMIT_LEVEL_INTERNAL = "emit_internal"
 EMIT_LEVEL_NONE = "emit_none"
-
-PARTY_MODE_ENABLED = "party_mode_enabled"
-PARTY_MODE_DISABLED = "party_mode_disabled"

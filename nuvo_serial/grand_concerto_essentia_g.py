@@ -24,8 +24,6 @@ from nuvo_serial.const import (
     EMIT_LEVEL_EXTERNAL,
     EMIT_LEVEL_INTERNAL,
     EMIT_LEVEL_NONE,
-    PARTY_MODE_ENABLED,
-    PARTY_MODE_DISABLED,
     ZONE_ALL_OFF,
     ZONE_STATUS,
     ZONE_EQ_STATUS,
@@ -156,9 +154,7 @@ def _set_model_globals(model: str) -> None:
 
 class StateTrack:
     def __init__(self, nuvo: NuvoAsync, model: str) -> None:
-        self._state: dict = {}
-        self._previous_state: dict = {}
-        self._clear_party_tracker()
+        self._state: dict[str, Any] = {}
         self._nuvo = nuvo
         self._model = model
         self._initial_state_retrieval_completed = False
@@ -169,19 +165,8 @@ class StateTrack:
         for msg_type in MSG_CLASS_TRACK[self._model]:
             self._nuvo._bus.add_subscriber(self._state_tracker, msg_type, internal=True)
 
-        # for msg_type in MSG_CLASS_QUERY_ZONE_STATUS[self._model]:
-        #     self._nuvo._bus.add_subscriber(
-        #         self._event_zone_query, msg_type, internal=True
-        #     )
-
     def setup_special_subscribers(self) -> None:
         for msg_type in MSG_CLASS_QUERY_ZONE_STATUS[self._model]:
-            # if msg_type == SYSTEM_PARTY:
-            #     self._nuvo._bus.add_subscriber(
-            #         self._party_mode_handler, msg_type, internal=True
-            #     )
-            # else:
-
             self._nuvo._bus.add_subscriber(
                 self._event_zone_query, msg_type, internal=True
             )
@@ -192,26 +177,26 @@ class StateTrack:
         self._initial_state_retrieval_completed = False
 
         await self._get_party_status()
-        await self._get_zone_states()
         await self._get_zone_configurations()
+        await self._get_zone_states()
         await self._get_zone_volume_configurations()
         await self._get_zone_eq_configurations()
         await self._get_source_configurations()
         await self._nuvo.get_version()
         self._initial_state_retrieval_completed = True
+        _LOGGER.debug("============Finished retrieving initial state===========")
 
     async def _get_zone_states(
         self,
         exclusions: Optional[Iterable[int]] = None,
         inclusions: Optional[Iterable[int]] = None,
+        emit_level: Optional[str] = EMIT_LEVEL_ALL,
     ) -> List[Any]:
         """Get ZoneStatus for all zones."""
 
         exclusions = [] if exclusions is None else exclusions
         inclusions = [] if inclusions is None else inclusions
-        # if inclusions is not None and not inclusions:
-        #     return []
-        # zone_list = inclusions if inclusions else ZONE_RANGE_PHYSICAL
+
         if inclusions:
             _LOGGER.debug("Zone list inclusions = %s", inclusions)
         zone_states = []
@@ -221,7 +206,7 @@ class StateTrack:
                 continue
             if inclusions and zone not in inclusions:
                 continue
-            zone_states.append(await self._nuvo.zone_status(zone))
+            zone_states.append(await self._nuvo.zone_status(zone, emit_level))
         return zone_states
 
     async def _get_zone_configurations(self) -> None:
@@ -288,12 +273,15 @@ class StateTrack:
         }
         """
 
-        self._previous_state = deepcopy(self._state)
         msg_type = message["event_name"]
         new_d_class = message["event"]
         event_entity = MSG_CLASS_KEYS[msg_type]
         new_d_class_asdict = asdict(message["event"])
         event_data = self._state.setdefault(msg_type, {})
+
+        _LOGGER.debug(
+            "STATETRACKER: Received msg type %s with msg %s", msg_type, new_d_class
+        )
 
         if event_entity in ("zone", "source"):
             existing_d_class = event_data.get(new_d_class_asdict[event_entity], None)
@@ -309,9 +297,23 @@ class StateTrack:
         else:
             event_data[key] = new_d_class
 
-        if self._initial_state_retrieval_completed:
+        if not self._initial_state_retrieval_completed:
+            # ZoneStatus rcvd from a master
+            # Update slave zones ZoneStatus
+            # _LOGGER.debug("GROUPTRACKER: AAAA GROUP MEMBER %d: initial_state_retrieval is false", new_d_class.zone)
+            if msg_type == ZONE_STATUS and self._slave_zones_for_zone(
+                zone=new_d_class.zone
+            ):
+                _LOGGER.debug(
+                    "GROUPTRACKER: BBBB GROUP MEMBER %d: initial_state_retrieval is false",
+                    new_d_class.zone,
+                )
+                self._master_zone_status_handler(new_d_class, emit=False)
+        else:
             await self._zone_group_state_tracker(message)
 
+            # Don't set up a special callback handler for a SYSTEM_PARTY message,
+            # handle it hear top ensure the party state is already recorded
             if msg_type == SYSTEM_PARTY:
                 await self._party_mode_handler(message)
 
@@ -324,18 +326,24 @@ class StateTrack:
 
         msg_type = message["event_name"]
         msg = message["event"]
-        # event_entity = MSG_CLASS_KEYS[msg_type]
 
         """
         PARTY MODE
 
         One zone (host) controls all other zones (guests).
 
+        Party host changes volume, mute, source for all guest zones, Nuvo only emits
+        ZoneStatus for host zone.
+
         All zones that do not have Party mode disabled (ZoneConfiguration.dnd) are
         turned on and set to ZoneVolume.party_vol setting.
 
-        Party host changes volume, mute, source for all guest zones, Nuvo only emits
-        ZoneStatus for host zone.
+        Nuvo firmware has a bug in ZoneConfiguration.dnd bitmask reporting/setting,
+        the value is either 0 or 1 if any of the three flags are set - this should
+        be a decimal value representing the bitmask of the three flags. So this cannot
+        be used to determine programatically which zones will be in a party. If the
+        value is 0, it will be a party member, but if it's 1 it's unknown whether
+        it will be in a party.
 
         Guest zone settings cannot be overriden by party mode host - e.g. max_vol,
         permitted sources.  A setting from host violating any guest setting will
@@ -355,21 +363,6 @@ class StateTrack:
 
         Switching former host zone back on does NOT put it back in party host mode.
 
-        --
-
-        Ensure when host ZoneStatus changes, guest zones are queried and
-        emitted to listeners. Query Nuvo for individual guest zones rather than
-        mirror then emit host zone state, as settings like permitted sources
-        and max_vol do not get overriden by being in a party, so configuration
-        set by host that violates a guest setting will not be set on that
-        guest and state cannot be guaranteed to match.
-
-        To prevent receiving the party host ZoneStatus again and causing a loop:
-            Exclude the party host zone itself
-            Exclude any zone slaved to the party host as this returns the master zone
-            ZoneStatus, not the slaved zone.
-            Exclude zones with Party mode disabled
-            Exclude slaved zones
         """
 
         if (
@@ -387,7 +380,8 @@ class StateTrack:
         Master zone then controls all aspects of slaved zone: power, volume, source etc
 
         Relationships can be chained - a slaved zone can be a master zone for
-        other zones.
+        other zones.  NOTE the Configurator software GUI does not allow this, but the
+        API doesn't enforce it.
 
         From Nuvo API docs:
         'When a zone is slaved to another zone, the Main Processor Unit only
@@ -399,9 +393,8 @@ class StateTrack:
         ZoneStatus(zone=master_zone_id...)
 
         Nuvo ZoneStatus message contains a slave_eq=0/1 field which is not in serial
-        control API document so do not know the API command to modify this.  There is
-        a "Slave EQ Settings" checkbox for this field in the Windows Nuvo Configurator
-        application.
+        control API document - have worked out the command to set this field and
+        created a command.
 
         Slaving a zone does not set slave_eq to 1 automatically, its set to 0.
 
@@ -413,41 +406,24 @@ class StateTrack:
 
         When in a master/slave relationship setting the Master or ZoneEQ using their
         respective IDs will sync each others EQ, but the ZoneEQ message returned
-        contains their own ID.  This means HASS will not reflect a slaves EQ properties
-        if the Masters EQ is changed, and vice versa.  NOt sure how to handle this.
-
-        Update and emit Slave zones ZoneStatus if Master zone's ZoneStatus changes.
-
-        Requesting a slaved zone's ZoneStatus returns the master's ZoneStatus so can't
-        use this to keep state in step.
-
+        contains their own ID.
 
         """
         # ZoneStatus rcvd from a master
         # Update and emit slave zones ZoneStatus
-        # Will also handle updating slave zones for a master zone which is currently a
-        # party guest
         if msg_type == ZONE_STATUS and self._slave_zones_for_zone(zone=msg.zone):
-            self._master_zone_status_handler(msg)
+            self._master_zone_status_handler(msg, emit=True)
 
         # Group membership handler
         # Filter:
         # Zone is ON
         # Zone in a group
-        # Zone is not in a party
-        # Zone source has changed
-
-        if (msg_type == ZONE_STATUS and msg.zone == 7):
-            _LOGGER.debug("Zone %d FOUND7: %s", msg.zone, msg)
         if (
             msg_type == ZONE_STATUS
             and msg.power
             and self._get_group_membership(zone=msg.zone)
-            and msg.zone not in self._get_zones_in_party()
-            and not self._zone_switching_on(msg.zone)
-            and msg.source != self._get_previous_source(msg.zone)
         ):
-            self._group_member_zone_status_handler(msg)
+            await self._group_member_zone_status_handler(msg)
 
         if msg_type == ZONE_EQ_STATUS:
             # ZoneEQ rcvd from a master
@@ -460,17 +436,34 @@ class StateTrack:
                 self._slave_zone_eq_handler(msg)
 
     async def _party_host_zone_status_handler(self, msg: ZoneStatus) -> None:
-        """On receiving party host ZoneStatus, request party guests ZoneStatus.
-        """
-        inclusions = self._state[PARTY_MODE_ENABLED].difference({msg.zone})
-        if inclusions:
-            _LOGGER.debug(f"GROUP: PARTY GUEST ZONE UPDATES FOR: {inclusions}")
-            asyncio.create_task(self._get_zone_states(inclusions=inclusions))
+        """On receiving party host ZoneStatus, request other zones ZoneStatus.
+        No need to know the party guests as these requests will keep guest state state
+        in step with party host.
 
-    def _master_zone_status_handler(self, msg: ZoneStatus) -> None:
+        To prevent receiving the party host ZoneStatus again and causing a loop:
+            Exclude the party host zone itself
+            Exclude any zone slaved to the party host as this returns the master zone
+            ZoneStatus, not the slaved zone.
+            Exclude slaved zones
+        """
+        _LOGGER.debug(
+            "GROUPTRACKER: PARTY HOST ZONE %d ZONE_STATUS RCVD, REQUESTING UPDATES FOR OTHER ZONES",
+            msg.zone,
+        )
+        slaved_zones = self._slaved_zones()
+        disabled_zones = self._disabled_zones()
+        exclusions = slaved_zones.union(disabled_zones).union({msg.zone})
+        _LOGGER.debug(
+            "GROUPTRACKER: PARTY HOST ZONE, REQUESTING UPDATES FOR OTHER ZONES, EXCLUDING %s",
+            exclusions,
+        )
+        asyncio.create_task(self._get_zone_states(exclusions=exclusions))
+
+    def _master_zone_status_handler(self, msg: ZoneStatus, emit: bool = True) -> None:
         """ZoneStatus rcvd from a master.
         Update and emit slave zone ZoneStatus."""
 
+        _LOGGER.debug("GROUPTRACKER: MASTER ZONE %d ZONE_STATUS RCVD", msg.zone)
         new_z_states = []
 
         for slave_zone_id in self._slave_zones_for_zone(zone=msg.zone):
@@ -478,11 +471,14 @@ class StateTrack:
             self._state[ZONE_STATUS][slave_zone_id] = new_slave_z_status
             new_z_states.append(new_slave_z_status)
 
+        if not emit:
+            _LOGGER.debug("GROUPTRACKER: MASTER ZONE %d NOT EMITTING", msg.zone)
+            return
+
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_EXTERNAL)
         for z_status in new_z_states:
             _LOGGER.debug(f"GROUP: SLAVE ZONE UPDATE: {z_status}")
-            self._nuvo._bus.emit_event(
-                event_name=ZONE_STATUS, event=z_status)
+            self._nuvo._bus.emit_event(event_name=ZONE_STATUS, event=z_status)
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
 
     def _master_zone_eq_handler(self, msg: ZoneEQStatus) -> None:
@@ -503,8 +499,7 @@ class StateTrack:
             self._nuvo._bus.set_emit_level(EMIT_LEVEL_EXTERNAL)
             for z_eq in new_z_eqs:
                 _LOGGER.debug(f"GROUP: MASTER_EQ UPDATING SLAVE ZONES: {z_eq}")
-                self._nuvo._bus.emit_event(
-                    event_name=ZONE_EQ_STATUS, event=z_eq)
+                self._nuvo._bus.emit_event(event_name=ZONE_EQ_STATUS, event=z_eq)
             self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
 
     def _slave_zone_eq_handler(self, msg: ZoneEQStatus) -> None:
@@ -515,7 +510,9 @@ class StateTrack:
         # Update fellow slave zones with slave_eq=1
         # Update the master ZoneEQ
         master_zone = self._get_master_zone_for_slave(slave_zone=msg.zone)
-        slave_zones = self._slave_zones_for_zone(zone=master_zone)
+        slave_zones = self._slave_zones_for_zone(zone=master_zone).difference(
+            {msg.zone}
+        )
         zones_for_update = [master_zone]
         for slave_zone in slave_zones:
             if self._slave_eq_enabled(slave_zone):
@@ -531,72 +528,45 @@ class StateTrack:
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_EXTERNAL)
         for z_eq in new_z_eqs:
             _LOGGER.debug(f"GROUP: SLAVE_EQ UPDATING MASTER AND OTHER SLAVES: {z_eq}")
-            self._nuvo._bus.emit_event(
-                event_name=ZONE_EQ_STATUS, event=z_eq)
+            self._nuvo._bus.emit_event(event_name=ZONE_EQ_STATUS, event=z_eq)
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
 
-    def _group_member_zone_status_handler(self, msg: ZoneStatus) -> None:
+    async def _group_member_zone_status_handler(self, msg: ZoneStatus) -> None:
         """ZoneStatus rcvd from a Group member.
-        For all zones in the group and not currently in a party, update Source
-        and emit to listeners.
+        Request other group member ZoneStatus
+        Filter out:
+            self
+            party host
+            slaves
+
+        For all zones in the group and not currently a party host, request ZoneStatus
+        to ensure source changes are synced.
         """
-        # Only the Source is shared amongst groups so check if this has changed
-        # as this handler will also run for volume changes etc
 
-        _LOGGER.debug("GROUP: GROUP MEMBER HANDLER FOR ZONE: %s", msg.zone)
-        # current_source = self._get_current_source(msg.zone)
-        # if current_source == msg.source:
-        #     _LOGGER.debug("GROUP: GROUP MEMBER HANDLER FOR ZONE: %s SOURCE MATCH, NOOP", msg.zone)
-        #     return
-
-        party_members = self._get_zones_in_party()
-
-        # Being in a party overrides being in a group
-        # if self.party_active:
-        #     if msg.zone in party_members:
-        #         return
-
-        group_members = self._get_group_members(
+        inclusions = self._get_group_members(
             group=self._get_group_membership(zone=msg.zone)
         )
-        fellow_group_members = group_members.difference({msg.zone})
-        party_members = self._get_zones_in_party()
-        fellow_group_members_not_partying = fellow_group_members.difference(party_members)
-        _LOGGER.debug("GROUP: GROUP MEMBERS %s", group_members)
-        _LOGGER.debug("GROUP: GROUP MEMBERS NOT IN PARTY %s", fellow_group_members_not_partying)
-        _LOGGER.debug("GROUP: PARTY MEMBERS: %s", party_members)
+        inclusions = inclusions.difference({msg.zone})
 
-        if not fellow_group_members_not_partying:
-            _LOGGER.debug("GROUP: GROUP MEMBER SOURCE CHANGE NO UPDATES TO MAKE")
+        if self.party_active:
+            inclusions = inclusions.difference({self.party_host})
+
+        inclusions = inclusions.difference(self._slaved_zones())
+
+        if not inclusions:
             return
-        # else:
-        #     _LOGGER.debug(
-        #         "GROUP: GROUP MEMBER SOURCE CHANGE UPDATES FOR %s",
-        #         fellow_group_members_not_partying,
-        #     )
 
-        new_z_states = []
-
-        for zone_id in fellow_group_members_not_partying:
-            current_zone_status = self._get_zone_status_from_state(zone_id)
-            if current_zone_status.source != msg.source and self._permitted_source_for_zone(zone_id, msg.source):
-                _LOGGER.debug(
-                    "GROUP: GROUP MEMBER SOURCE CHANGE UPDATES FOR ZONE ID %d",
-                    zone_id,
-                )
-                new_z_status = replace(current_zone_status, source=msg.source)
-                self._state[ZONE_STATUS][zone_id] = new_z_status
-                new_z_states.append(new_z_status)
+        # Emit external or a loop will occur
+        # self._nuvo._bus.set_emit_level(EMIT_LEVEL_NONE)
+        zone_states = await self._get_zone_states(
+            inclusions=inclusions, emit_level=EMIT_LEVEL_NONE
+        )
+        # asyncio.create_task(self._get_zone_states(inclusions=inclusions))
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_EXTERNAL)
-        if not new_z_states:
-            _LOGGER.debug("GROUP: GROUP MEMBER SOURCE CHANGE NO ZONE STATUS UPDATES TO MAKE")
-        for z_status in new_z_states:
-            _LOGGER.debug(
-                "GROUP: GROUP MEMBER SOURCE CHANGE UPDATE FOR ZONE %d - ZONE INITIATOR: %d NEW SOURCE: %d",  # noqa
-                z_status.zone,
-                msg.zone,
-                msg.source
-            )
+        for z_status in zone_states:
+            # Update internal state as the emitted message will not be received
+            # by internal callback
+            self._state[ZONE_STATUS][z_status.zone] = z_status
             self._nuvo._bus.emit_event(event_name=ZONE_STATUS, event=z_status)
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
 
@@ -611,12 +581,12 @@ class StateTrack:
         )
         return 0
 
-    def _slave_zones_for_zone(self, zone: int) -> List[int]:
+    def _slave_zones_for_zone(self, zone: int) -> Set[int]:
         """Return a list of zone id's slaved to master zone."""
-        slaves = []
+        slaves: Set[int] = set()
         for zone_id, z_cfg in self._state[ZONE_CONFIGURATION].items():  # noqa
             if z_cfg.enabled and z_cfg.slave_to == zone:
-                slaves.append(z_cfg.zone)
+                slaves.add(z_cfg.zone)
 
         return slaves
 
@@ -631,15 +601,6 @@ class StateTrack:
             zone,
         )
         return False
-
-    def _zones_party_mode_disabled(self) -> List[int]:
-        """Return a list of zone id's with DND NOPARTY set."""
-        no_party_zones = []
-        for zone_id, z_cfg in self._state[ZONE_CONFIGURATION].items():
-            if z_cfg.enabled and "NOPARTY" in z_cfg.dnd:
-                no_party_zones.append(zone_id)
-
-        return no_party_zones
 
     def _slaved_zones(self) -> Set[int]:
         """Return a list of zone id's with slave_to set."""
@@ -682,60 +643,6 @@ class StateTrack:
 
         return grouped_zones
 
-    def _get_zones_in_party(self) -> Set[int]:
-        """Return set of zone ids with part mode enabled."""
-        return self._state[PARTY_MODE_ENABLED]
-
-    def _get_current_source(self, zone: int) -> int:
-        """Return source id for zone."""
-        z_state = self._state[ZONE_STATUS][zone]
-        if z_state.power:
-            return z_state.source
-        _LOGGER.error(
-            "STATE_TRACKER:ANOMALY:ATTEMPTED SOURCE QUERY FOR DISABLED ZONE ID: %d",
-            zone,
-        )
-        return 0
-
-    def _get_previous_source(self, zone: int) -> int:
-        """Return previous source id for zone."""
-        z_state = self._get_zone_status_from_previous_state(zone)
-        if z_state.power:
-            return z_state.source
-        _LOGGER.error(
-            "STATE_TRACKER:ANOMALY:ATTEMPTED PREVIOUS SOURCE QUERY FOR DISABLED ZONE ID: %d",
-            zone,
-        )
-        return 0
-
-    def _zone_switching_on(self, zone: int) -> bool:
-        """Return True if the zone transitioned from off to on."""
-        current_z_status = self._get_zone_status_from_state(zone)
-        previous_z_status = self._get_zone_status_from_previous_state(zone)
-        if previous_z_status.power is False and current_z_status.power is True:
-            return True
-        else:
-            return False
-
-
-    def _get_zone_status_from_state(self, zone: int) -> ZoneStatus:
-        """Return current ZoneStatus for zone."""
-        return self._state[ZONE_STATUS][zone]
-
-    def _get_zone_status_from_previous_state(self, zone: int) -> ZoneStatus:
-        """Return previous ZoneStatus for zone."""
-        return self._previous_state[ZONE_STATUS][zone]
-
-    def _permitted_source_for_zone(self, zone: int, source: int) -> bool:
-        z_cfg = self._state[ZONE_CONFIGURATION][zone]
-        permitted_source = False
-        for s_id in [int(src.split("SOURCE")[1]) for src in z_cfg.sources]:
-            if s_id == source:
-                permitted_source = True
-                break
-
-        return permitted_source
-
     async def _event_zone_query(self, message: dict[str, Any]) -> None:
         """Callback to handle received events which require sending a ZoneStatus query.
 
@@ -746,8 +653,7 @@ class StateTrack:
         await self._get_zone_states()
 
     async def _party_mode_handler(self, message: dict[str, Any]) -> None:
-        """Callback to handle party mode being set/unset and track zones which have
-        NOPARTY set.
+        """Callback to handle party mode being enabled/disabled
 
         Due to a Nuvo firmware bug in ZoneConfiguration.dnd bitmask reporting, this
         cannot be used to determine if a zone has NOPARTY set.
@@ -757,50 +663,20 @@ class StateTrack:
 
         msg = message["event"]
         # Party mode now disabled
+        # Disabling party mode leaves the other zones as is so no state change.
         if not msg.party_host:
-            self._clear_party_tracker()
             return
 
-        # Party mode now enabled
-
-        slaved_zones = self._slaved_zones()
-        disabled_zones = self._disabled_zones()
-        exclusions = slaved_zones.union(disabled_zones)
-        self._nuvo._bus.set_emit_level(EMIT_LEVEL_NONE)
-        zone_states = await self._get_zone_states(exclusions=exclusions)
-        party_participants = []
-        non_party_participants = []
-        for z_status in zone_states:
-            if (
-                z_status.power
-                and z_status.volume
-                == self._state[ZONE_VOLUME_CONFIGURATION][z_status.zone].party_vol
-            ):
-                party_participants.append(z_status)
-            else:
-                non_party_participants.append(z_status)
-
-        self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
-
-        self._clear_party_tracker()
-
-        for z in party_participants:
-            _LOGGER.debug(f"PARTY_PARTICIPANTS {z}")
-            self._state[PARTY_MODE_ENABLED].add(z.zone)
-        for z in non_party_participants:
-            _LOGGER.debug(f"NON_PARTY_PARTICIPANTS {z}")
-            self._state[PARTY_MODE_DISABLED].add(z.zone)
-
         """
-        Now the guest list is known, request ZoneStatus for the party host which will
-        kick off updating the party guests and their slaves
+        Request ZoneStatus for the party host.  The received message
+        will call the party host ZoneStatus handler which will request updates
+        for the other zones.
         """
+        _LOGGER.debug(
+            "GROUPTRACKER: PARTY MODE ACTIVATED BY HOST ZONE %d, REQUESTING ITS ZONE_STATUS",
+            msg.zone,
+        )
         asyncio.create_task(self._get_zone_states(inclusions=[msg.zone]))
-
-    def _clear_party_tracker(self):
-        """Clear party tracking state."""
-        self._state[PARTY_MODE_ENABLED] = set()
-        self._state[PARTY_MODE_DISABLED] = set()
 
 
 class NuvoAsync:
@@ -877,9 +753,11 @@ class NuvoAsync:
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def zone_status(self, zone: int) -> ZoneStatus:
+    async def zone_status(
+        self, zone: int, emit_level: str = EMIT_LEVEL_ALL
+    ) -> ZoneStatus:
         return await self._connection.send_message(
-            _format_zone_status_request(zone), ZONE_STATUS
+            _format_zone_status_request(zone), ZONE_STATUS, emit_level
         )
 
     @locked
@@ -1016,6 +894,29 @@ class NuvoAsync:
         return await self._connection.send_message(
             _format_zone_enable(zone, enable), ZONE_CONFIGURATION,
         )
+
+    # @locked
+    @icontract.require(lambda zones: all([zone_id in ZONE_RANGE for zone_id in zones]))
+    @icontract.require(lambda group: group in GROUP_RANGE)
+    async def create_zone_group(self, zones: List[int], group: int) -> None:
+        existing_zones = self._state_tracker._get_group_members(group)
+        if existing_zones:
+            for z_id in existing_zones:
+                await self.zone_join_group(z_id, 0)
+        for z_id in zones:
+            await self.zone_join_group(z_id, group)
+
+    @icontract.require(lambda group: group in GROUP_RANGE)
+    async def group_members(self, group: int) -> list[int]:
+        return list(self._state_tracker._get_group_members(group))
+
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    async def zone_group_members(self, zone: int) -> list[int]:
+        group = self._state_tracker._get_group_membership(zone=zone)
+        if group:
+            return list(self._state_tracker._get_group_members(group))
+        else:
+            return []
 
     """
     Source Configuration Commands
