@@ -31,6 +31,12 @@ grand_concerto_patterns["zone_mute_off"] = re.compile(r"Z(?P<zone>\d+)MUTEOFF$")
 grand_concerto_patterns["zone_volume_set"] = re.compile(
     r"Z(?P<zone>\d+)VOL(?P<volume>\d+)$"
 )
+grand_concerto_patterns["zone_volume_up"] = re.compile(
+    r"Z(?P<zone>\d+)VOL\+$"
+)
+grand_concerto_patterns["zone_volume_down"] = re.compile(
+    r"Z(?P<zone>\d+)VOL-$"
+)
 grand_concerto_patterns["zone_dnd_on"] = re.compile(r"Z(?P<zone>\d+)DNDON$")
 grand_concerto_patterns["zone_dnd_off"] = re.compile(r"Z(?P<zone>\d+)DNDOFF$")
 
@@ -41,7 +47,9 @@ grand_concerto_responses["zone_source_change"] = "#Z1,ON,SRC5,VOL60,DND0,LOCK0"
 grand_concerto_responses["zone_source_next"] = "#Z1,ON,SRC5,VOL60,DND0,LOCK0"
 grand_concerto_responses["zone_mute_on"] = "#Z1,ON,SRC4,VOLMUTE,DND0,LOCK0"
 grand_concerto_responses["zone_mute_off"] = zone_status_response_baseline
-grand_concerto_responses["zone_volume_set"] = "#Z1,ON,SRC4,VOL59,DND0,LOCK0"
+grand_concerto_responses["zone_volume_set"] = "#Z1,ON,SRC4,VOL33,DND0,LOCK0"
+grand_concerto_responses["zone_volume_up"] = "#Z1,ON,SRC4,VOL59,DND0,LOCK0"
+grand_concerto_responses["zone_volume_down"] = "#Z1,ON,SRC4,VOL61,DND0,LOCK0"
 grand_concerto_responses["zone_dnd_on"] = "#Z1,ON,SRC4,VOL60,DND1,LOCK0"
 grand_concerto_responses["zone_dnd_off"] = zone_status_response_baseline
 

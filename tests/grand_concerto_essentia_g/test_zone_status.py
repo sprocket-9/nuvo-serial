@@ -15,7 +15,9 @@ zone_source_change = replace(zone_baseline, source=5,)
 zone_set_source = zone_source_change
 zone_mute_on = replace(zone_baseline, volume=None, mute=True)
 zone_mute_off = zone_baseline
+zone_volume_set = replace(zone_baseline, volume=33)
 zone_volume_up = replace(zone_baseline, volume=59)
+zone_volume_down = replace(zone_baseline, volume=61)
 zone_dnd_on = replace(zone_baseline, dnd=True)
 zone_dnd_off = zone_baseline
 
@@ -46,8 +48,16 @@ class TestZoneStatus:
         assert asdict(response) == asdict(zone_mute_off)
 
     def test_zone_set_volume(self, nuvo):
-        response = nuvo.set_volume(ZONE, 59)
+        response = nuvo.set_volume(ZONE, 33)
+        assert asdict(response) == asdict(zone_volume_set)
+
+    def test_zone_volume_up(self, nuvo):
+        response = nuvo.volume_up(ZONE)
         assert asdict(response) == asdict(zone_volume_up)
+
+    def test_zone_volume_down(self, nuvo):
+        response = nuvo.volume_down(ZONE)
+        assert asdict(response) == asdict(zone_volume_down)
 
     def test_zone_dnd_on(self, nuvo):
         response = nuvo.set_dnd(ZONE, True)
@@ -85,8 +95,16 @@ class TestAsyncZoneStatus:
         assert asdict(response) == asdict(zone_mute_off)
 
     async def test_async_zone_set_volume(self, async_nuvo):
-        response = await async_nuvo.set_volume(ZONE, 59)
+        response = await async_nuvo.set_volume(ZONE, 33)
+        assert asdict(response) == asdict(zone_volume_set)
+
+    async def test_async_zone_volume_up(self, async_nuvo):
+        response = await async_nuvo.volume_up(ZONE)
         assert asdict(response) == asdict(zone_volume_up)
+
+    async def test_async_zone_volume_down(self, async_nuvo):
+        response = await async_nuvo.volume_down(ZONE)
+        assert asdict(response) == asdict(zone_volume_down)
 
     async def test_async_zone_dnd_on(self, async_nuvo):
         response = await async_nuvo.set_dnd(ZONE, True)

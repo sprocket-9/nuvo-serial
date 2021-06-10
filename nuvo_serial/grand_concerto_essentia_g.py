@@ -784,6 +784,20 @@ class NuvoAsync:
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
+    async def volume_up(self, zone: int) -> ZoneStatus:
+        return await self._connection.send_message(
+            _format_volume_up(zone), ZONE_STATUS
+        )
+
+    @locked
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    async def volume_down(self, zone: int) -> ZoneStatus:
+        return await self._connection.send_message(
+            _format_volume_down(zone), ZONE_STATUS
+        )
+
+    @locked
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
     @icontract.require(lambda source: source in SOURCE_RANGE)
     async def set_source(self, zone: int, source: int) -> ZoneStatus:
         return await self._connection.send_message(
@@ -1207,6 +1221,24 @@ class NuvoSync:
         rtn: Optional[ZoneStatus]
         rtn = self._retry_request(
             _format_set_volume(zone, volume), "Zone Volume", ZoneStatus
+        )
+        return rtn
+
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    @synchronized
+    def volume_up(self, zone: int) -> Optional[ZoneStatus]:
+        rtn: Optional[ZoneStatus]
+        rtn = self._retry_request(
+            _format_volume_up(zone), "Zone Volume", ZoneStatus
+        )
+        return rtn
+
+    @icontract.require(lambda zone: zone in ZONE_RANGE)
+    @synchronized
+    def volume_down(self, zone: int) -> Optional[ZoneStatus]:
+        rtn: Optional[ZoneStatus]
+        rtn = self._retry_request(
+            _format_volume_down(zone), "Zone Volume", ZoneStatus
         )
         return rtn
 
@@ -1663,6 +1695,14 @@ def _format_set_next_source(zone: int) -> str:
 
 def _format_set_volume(zone: int, volume: int) -> str:
     return "Z{}VOL{}".format(zone, volume)
+
+
+def _format_volume_up(zone: int) -> str:
+    return "Z{}VOL+".format(zone)
+
+
+def _format_volume_down(zone: int) -> str:
+    return "Z{}VOL-".format(zone)
 
 
 def _format_set_mute(zone: int, mute: bool) -> str:
