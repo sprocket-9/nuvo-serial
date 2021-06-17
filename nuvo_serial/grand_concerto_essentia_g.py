@@ -626,6 +626,9 @@ class StateTrack:
         """Return id of the group the zone is a member of - 0 means no group."""
         z_cfg = self._state[ZONE_CONFIGURATION][zone]
         if z_cfg.enabled:
+            # Don't include slaved zones in the group membership
+            if z_cfg.slave_to:
+                return 0
             return z_cfg.group
         _LOGGER.error(
             "STATE_TRACKER:ANOMALY:ATTEMPTED GROUP QUERY FOR DISABLED ZONE ID: %d",
@@ -634,11 +637,11 @@ class StateTrack:
         return 0
 
     def _get_group_members(self, group: int) -> Set[int]:
-        """Return set of zone ids in group."""
+        """Return set of zone ids in group. Slave zones excluded."""
 
         grouped_zones: Set[int] = set()
         for zone_id, z_cfg in self._state[ZONE_CONFIGURATION].items():
-            if z_cfg.enabled and z_cfg.group == group:
+            if z_cfg.enabled and z_cfg.group == group and not z_cfg.slave_to:
                 grouped_zones.add(zone_id)
 
         return grouped_zones
@@ -925,12 +928,12 @@ class NuvoAsync:
         return list(self._state_tracker._get_group_members(group))
 
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def zone_group_members(self, zone: int) -> list[int]:
+    async def zone_group_members(self, zone: int) -> set[int]:
         group = self._state_tracker._get_group_membership(zone=zone)
         if group:
-            return list(self._state_tracker._get_group_members(group))
+            return self._state_tracker._get_group_members(group)
         else:
-            return []
+            return set()
 
     """
     Source Configuration Commands
