@@ -23,6 +23,21 @@ Commands return instances of a python dataclass which represents the Nuvo respon
 * SourceConfiguration
 * Version
 ```
+## Connection
+Direct serial cable or remote network connection using hardware serial-to-network adapter or software such as [ser2net](https://linux.die.net/man/8/ser2net) will
+work, all that is needed is a change of the port_url argument:
+
+E.g:
+
+Local: ```/dev/ttyUSB1```
+
+Remote: ```socket://host:port```
+
+A possible ser2net configuration connecting TCP port 10003 to the nuvo device on /dev/ttyUSB1:
+
+```10003:raw:0:/dev/ttyUSB1:57600 8DATABITS NONE 1STOPBIT```
+
+ ```port_url="socket://192.168.5.1:10003"```
 
 ## Synchronous Interface
 
