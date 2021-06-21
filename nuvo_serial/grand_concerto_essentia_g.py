@@ -279,10 +279,6 @@ class StateTrack:
         new_d_class_asdict = asdict(message["event"])
         event_data = self._state.setdefault(msg_type, {})
 
-        _LOGGER.debug(
-            "STATETRACKER: Received msg type %s with msg %s", msg_type, new_d_class
-        )
-
         if event_entity in ("zone", "source"):
             existing_d_class = event_data.get(new_d_class_asdict[event_entity], None)
             key = new_d_class_asdict[event_entity]
@@ -300,14 +296,9 @@ class StateTrack:
         if not self._initial_state_retrieval_completed:
             # ZoneStatus rcvd from a master
             # Update slave zones ZoneStatus
-            # _LOGGER.debug("GROUPTRACKER: AAAA GROUP MEMBER %d: initial_state_retrieval is false", new_d_class.zone)
             if msg_type == ZONE_STATUS and self._slave_zones_for_zone(
                 zone=new_d_class.zone
             ):
-                _LOGGER.debug(
-                    "GROUPTRACKER: BBBB GROUP MEMBER %d: initial_state_retrieval is false",
-                    new_d_class.zone,
-                )
                 self._master_zone_status_handler(new_d_class, emit=False)
         else:
             await self._zone_group_state_tracker(message)
@@ -477,7 +468,7 @@ class StateTrack:
 
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_EXTERNAL)
         for z_status in new_z_states:
-            _LOGGER.debug(f"GROUP: SLAVE ZONE UPDATE: {z_status}")
+            _LOGGER.debug(f"GROUPTRACKER: SLAVE ZONE UPDATE: {z_status}")
             self._nuvo._bus.emit_event(event_name=ZONE_STATUS, event=z_status)
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
 
@@ -498,7 +489,7 @@ class StateTrack:
 
             self._nuvo._bus.set_emit_level(EMIT_LEVEL_EXTERNAL)
             for z_eq in new_z_eqs:
-                _LOGGER.debug(f"GROUP: MASTER_EQ UPDATING SLAVE ZONES: {z_eq}")
+                _LOGGER.debug(f"GROUPTRACKER: MASTER_EQ UPDATING SLAVE ZONES: {z_eq}")
                 self._nuvo._bus.emit_event(event_name=ZONE_EQ_STATUS, event=z_eq)
             self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
 
@@ -527,7 +518,7 @@ class StateTrack:
 
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_EXTERNAL)
         for z_eq in new_z_eqs:
-            _LOGGER.debug(f"GROUP: SLAVE_EQ UPDATING MASTER AND OTHER SLAVES: {z_eq}")
+            _LOGGER.debug(f"GROUPTRACKER: SLAVE_EQ UPDATING MASTER AND OTHER SLAVES: {z_eq}")
             self._nuvo._bus.emit_event(event_name=ZONE_EQ_STATUS, event=z_eq)
         self._nuvo._bus.set_emit_level(EMIT_LEVEL_ALL)
 
@@ -576,7 +567,7 @@ class StateTrack:
         if z_cfg.enabled:
             return z_cfg.slave_to
         _LOGGER.error(
-            "STATE_TRACKER:ANOMALY:ATTEMPTED SLAVE_TO MASTER ZONE QUERY FOR DISABLED ZONE ID %d",  # noqa
+            "GROUPTRACKER:ANOMALY:ATTEMPTED SLAVE_TO MASTER ZONE QUERY FOR DISABLED ZONE ID %d",  # noqa
             slave_zone,
         )
         return 0
@@ -597,7 +588,7 @@ class StateTrack:
             return z_cfg.slave_eq
 
         _LOGGER.error(
-            "STATE_TRACKER:ANOMALY:ATTEMPTED SLAVE_EQ ZONE QUERY FOR DISABLED ZONE ID %d",  # noqa
+            "GROUPTRACKER:ANOMALY:ATTEMPTED SLAVE_EQ ZONE QUERY FOR DISABLED ZONE ID %d",  # noqa
             zone,
         )
         return False
@@ -631,7 +622,7 @@ class StateTrack:
                 return 0
             return z_cfg.group
         _LOGGER.error(
-            "STATE_TRACKER:ANOMALY:ATTEMPTED GROUP QUERY FOR DISABLED ZONE ID: %d",
+            "GROUPTRACKER:ANOMALY:ATTEMPTED GROUP QUERY FOR DISABLED ZONE ID: %d",
             zone,
         )
         return 0
