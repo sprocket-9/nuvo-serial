@@ -263,8 +263,6 @@ class MsgBus:
         if not emit_level:
             emit_level = self.emit_level
 
-        _LOGGER.debug("MSGBUS: emit_level: %s", self.emit_level)
-
         if emit_level == EMIT_LEVEL_NONE:
             return
 
