@@ -11,4 +11,3 @@ dist/
 *.egg-info
 pip-wheel-metadata
 poetry.lock
-setup.py
