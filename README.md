@@ -3,7 +3,7 @@ Python API implementing the Nuvo Grand Concerto/Essentia G multi-zone audio ampl
 
 
 ## Notes
-I am currently using this library to create a Nuvo Integration for [Home Assistant](https://www.home-assistant.io/).
+A [Nuvo Integration](https://github.com/sprocket-9/hacs-nuvo-serial) built using this library, is available to control a Nuvo through a [Home Assistant](https://www.home-assistant.io/) frontend.
 
 ## Usage
 
