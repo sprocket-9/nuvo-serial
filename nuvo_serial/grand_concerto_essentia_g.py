@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Coroutine
 from copy import deepcopy
 from dataclasses import asdict, replace
+from datetime import datetime
 import logging
 from typing import Any, Callable, Iterable, Optional, Union, List, Set
 
@@ -1153,6 +1154,13 @@ class NuvoAsync:
             _format_set_party_host(zone, enable), SYSTEM_PARTY
         )
 
+    @locked
+    async def configure_time(self, date_time: datetime) -> Optional[OKResponse]:
+        return await self._connection.send_message(
+            _format_configure_time(date_time), OK_RESPONSE
+
+        )
+
 
 class NuvoSync:
     def __init__(self, port_url: str, model: str, retries: Optional[int] = None):
@@ -1613,6 +1621,13 @@ class NuvoSync:
         )
         return rtn
 
+    @synchronized
+    def configure_time(self, date_time: datetime) -> Optional[OKResponse]:
+        rtn: Optional[OKResponse]
+        rtn = self._retry_request(
+            _format_configure_time(date_time), "Configure Time", OKResponse)
+        return rtn
+
 
 def _is_int(s: Union[int, float, str]) -> bool:
     try:
@@ -1633,6 +1648,10 @@ def _format_set_page(page: bool) -> str:
 
 def _format_set_party_host(zone: int, enable: bool) -> str:
     return "Z{}PARTY{}".format(zone, int(enable))
+
+
+def _format_configure_time(date_time: datetime) -> str:
+    return "CFGTIME{}".format(date_time.strftime('%Y,%m,%d,%H,%M'))
 
 
 """
