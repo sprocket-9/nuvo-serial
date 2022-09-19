@@ -35,6 +35,7 @@ from nuvo_serial.const import (
     ZONE_BUTTON_PLAY_PAUSE,
     ZONE_BUTTON_PREV,
     ZONE_BUTTON_NEXT,
+    SYSTEM_MUTE,
     SYSTEM_PAGING,
     SYSTEM_PARTY,
     SYSTEM_VERSION,
@@ -44,6 +45,7 @@ from nuvo_serial.exceptions import ModelMismatchError
 from nuvo_serial.message import (
     DndMask,
     OKResponse,
+    Mute,
     Paging,
     Party,
     SourceConfiguration,
@@ -772,23 +774,23 @@ class NuvoAsync:
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
     @icontract.require(lambda volume: volume in VOLUME_RANGE)
-    async def set_volume(self, zone: int, volume: int) -> ZoneStatus:
+    async def set_volume(self, zone: int, volume: int) -> ZoneStatus | Mute:
         return await self._connection.send_message(
-            _format_set_volume(zone, volume), ZONE_STATUS
+            _format_set_volume(zone, volume), (ZONE_STATUS, SYSTEM_MUTE)
         )
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def volume_up(self, zone: int) -> ZoneStatus:
+    async def volume_up(self, zone: int) -> ZoneStatus | Mute:
         return await self._connection.send_message(
-            _format_volume_up(zone), ZONE_STATUS
+            _format_volume_up(zone), (ZONE_STATUS, SYSTEM_MUTE)
         )
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def volume_down(self, zone: int) -> ZoneStatus:
+    async def volume_down(self, zone: int) -> ZoneStatus | Mute:
         return await self._connection.send_message(
-            _format_volume_down(zone), ZONE_STATUS
+            _format_volume_down(zone), (ZONE_STATUS, SYSTEM_MUTE)
         )
 
     @locked
@@ -1155,9 +1157,16 @@ class NuvoAsync:
         )
 
     @locked
-    async def configure_time(self, date_time: datetime) -> Optional[OKResponse]:
+    async def configure_time(self, date_time: datetime) -> OKResponse:
         return await self._connection.send_message(
             _format_configure_time(date_time), OK_RESPONSE
+
+        )
+
+    @locked
+    async def mute_all_zones(self, mute: bool) -> Mute:
+        return await self._connection.send_message(
+            _format_mute_all_zones(mute), SYSTEM_MUTE
 
         )
 
@@ -1628,6 +1637,12 @@ class NuvoSync:
             _format_configure_time(date_time), "Configure Time", OKResponse)
         return rtn
 
+    @synchronized
+    def mute_all_zones(self, mute: bool) -> Optional[Mute]:
+        rtn: Optional[Mute]
+        rtn = self._retry_request(
+            _format_mute_all_zones(mute), "Mute All Zones", Mute)
+        return rtn
 
 def _is_int(s: Union[int, float, str]) -> bool:
     try:
@@ -1652,6 +1667,10 @@ def _format_set_party_host(zone: int, enable: bool) -> str:
 
 def _format_configure_time(date_time: datetime) -> str:
     return "CFGTIME{}".format(date_time.strftime('%Y,%m,%d,%H,%M'))
+
+
+def _format_mute_all_zones(mute: bool) -> str:
+    return "MUTE{}".format(int(mute))
 
 
 """

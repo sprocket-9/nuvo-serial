@@ -31,8 +31,10 @@ from nuvo_serial.const import (
     ZONE_EQ_STATUS,
     ZONE_STATUS,
     SOURCE_CONFIGURATION,
+    SYSTEM_MUTE,
     SYSTEM_PAGING,
     SYSTEM_VERSION,
+    SYSTEM_RESTART,
 
 )
 from nuvo_serial.exceptions import (
@@ -118,6 +120,10 @@ CONCERTO_ZONE_ALL_OFF = re.compile(
     r"#ALLOFF$"
 )
 
+CONCERTO_MUTE_RESPONSE = re.compile(
+    r"#MUTE(?P<mute>0|1)$"
+)
+
 CONCERTO_ERROR_RESPONSE = re.compile(
     r"#\?$"
 )
@@ -129,9 +135,11 @@ CONCERTO_PAGE_RESPONSE = re.compile(r"#PAGE(?P<page>0|1)$")
 
 CONCERTO_PARTY_RESPONSE = re.compile(r"#Z(?P<zone>\d+),PARTY(?P<party_host>0|1)$")
 
+CONCERTO_RESTART_RESPONSE = re.compile(r"\x00\x00#RESTART.+$")
+
 
 class FlagHelper(Flag):
-    def to_list(self) -> List[str]:
+    def to_list(self) -> List[Optional[str]]:
         """
         With current Flag implementation can't see an easy way to iterate
         through a Flag instance to see which flags are set  but using the 'in' operator
@@ -221,6 +229,47 @@ class Paging:
             return None
 
         return Paging(bool(int(match.group("page"))))
+
+
+@dataclass
+class Mute:
+    mute: bool
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        return re.search(CONCERTO_MUTE_RESPONSE, response_string)
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[Mute]:
+        if not response_string:
+            return None
+
+        match = cls._parse_response(response_string)
+
+        if not match:
+            return None
+
+        return Mute(bool(int(match.group("mute"))))
+
+
+@dataclass
+class Restart:
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        return re.search(CONCERTO_RESTART_RESPONSE, response_string)
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[Restart]:
+        if not response_string:
+            return None
+
+        match = cls._parse_response(response_string)
+
+        if not match:
+            return None
+
+        return Restart()
 
 
 @dataclass
@@ -443,10 +492,10 @@ class ZoneConfiguration:
     name: Optional[str] = None
     slave_to: Optional[int] = None
     group: Optional[int] = None
-    sources: Optional[list[str]] = None
+    sources: Optional[list[Optional[str]]] = None
     exclusive_source: Optional[bool] = None
     ir_enabled: Optional[int] = None
-    dnd: Optional[list[str]] = None
+    dnd: Optional[list[Optional[str]]] = None
     locked: Optional[bool] = None
     slave_eq: Optional[bool] = None
 
@@ -656,8 +705,10 @@ class ZoneButton:
 NuvoClass = Union[
     ErrorResponse,
     OKResponse,
+    Mute,
     Paging,
     Party,
+    Restart,
     ZoneAllOff,
     ZoneStatus,
     ZoneEQStatus,
@@ -679,8 +730,10 @@ MSG_CLASSES = {
         SOURCE_CONFIGURATION: SourceConfiguration,
         ZONE_VOLUME_CONFIGURATION: ZoneVolumeConfiguration,
         ZONE_BUTTON: ZoneButton,
+        SYSTEM_MUTE: Mute,
         SYSTEM_PARTY: Party,
         SYSTEM_PAGING: Paging,
+        SYSTEM_RESTART: Restart,
         SYSTEM_VERSION: Version,
     }
 }
@@ -697,8 +750,10 @@ MSG_CLASS_KEYS = {
     SOURCE_CONFIGURATION: "source",
     ZONE_VOLUME_CONFIGURATION: "zone",
     ZONE_BUTTON: "zone",
+    SYSTEM_MUTE: "system",
     SYSTEM_PARTY: "system",
     SYSTEM_PAGING: "system",
+    SYSTEM_RESTART: "system",
     SYSTEM_VERSION: "system",
 }
 
@@ -719,7 +774,9 @@ MSG_CLASS_TRACK[MODEL_ESSENTIA_G] = MSG_CLASS_TRACK[MODEL_GC]
 MSG_CLASS_QUERY_ZONE_STATUS = {
     MODEL_GC: [
         ZONE_ALL_OFF,
-        SYSTEM_PAGING
+        SYSTEM_MUTE,
+        SYSTEM_PAGING,
+        SYSTEM_RESTART
     ]
 }
 

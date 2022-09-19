@@ -39,6 +39,7 @@ from nuvo_serial.message import (
     format_message,
     process_message,
     OKResponse,
+    Mute,
     Paging,
     Party,
     SourceConfiguration,
@@ -371,6 +372,24 @@ class AsyncConnection:
         ...
 
     @overload
+    async def send_message(
+        self,
+        msg: str,
+        message_types: Tuple[
+            Literal["ZoneStatus"], Literal["Mute"]
+        ],
+    ) -> Union[ZoneStatus, Mute]:
+        ...
+
+    @overload
+    async def send_message(self, msg: str, message_types: Literal["OKResponse"],) -> OKResponse:
+        ...
+
+    @overload
+    async def send_message(self, msg: str, message_types: Literal["Mute"],) -> Mute:
+        ...
+
+    @overload
     async def send_message(self, msg: str, message_types: Literal["Paging"],) -> Paging:
         ...
 
@@ -688,7 +707,7 @@ class AsyncConnection:
         """
         message = await self._reader.readuntil(self._eol)
         # We have bytes with the correct eol chars but is it in the correct format?
-        if re.match(b"#.+?" + self._eol, message):
+        if re.match(b"(\x00\x00)?#.+?" + self._eol, message):
             return message
         else:
             raise MessageFormatError(message)
