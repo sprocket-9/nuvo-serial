@@ -676,12 +676,6 @@ class AsyncConnection:
             else:
                 # There message has been classified but it may not be the wanted
                 # message_type
-                if processed_type == ERROR_RESPONSE:
-                    err_msg = (
-                        "Message produced an error response from the Nuvo controller"
-                    )
-                    _LOGGER.debug("RESPONSEREADER: MessageResponseError: %s", err_msg)
-                    raise MessageResponseError(err_msg)
                 if processed_type in message_types:
                     _LOGGER.debug(
                         "RESPONSEREADER: Found matching response: %s", d_class
@@ -689,6 +683,12 @@ class AsyncConnection:
                     found_match = True
                     match = (processed_type, d_class)
                     break
+                elif processed_type == ERROR_RESPONSE:
+                    err_msg = (
+                        "Message produced an error response from the Nuvo controller"
+                    )
+                    _LOGGER.debug("RESPONSEREADER: MessageResponseError: %s", err_msg)
+                    raise MessageResponseError(err_msg)
                 else:
                     # The message has been classified but it's not the wanted
                     # message_type

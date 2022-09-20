@@ -25,6 +25,7 @@ from nuvo_serial.const import (
     EMIT_LEVEL_EXTERNAL,
     EMIT_LEVEL_INTERNAL,
     EMIT_LEVEL_NONE,
+    ERROR_RESPONSE,
     ZONE_ALL_OFF,
     ZONE_STATUS,
     ZONE_EQ_STATUS,
@@ -44,6 +45,7 @@ from nuvo_serial.const import (
 from nuvo_serial.exceptions import ModelMismatchError
 from nuvo_serial.message import (
     DndMask,
+    ErrorResponse,
     OKResponse,
     Mute,
     Paging,
@@ -766,9 +768,9 @@ class NuvoAsync:
 
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
-    async def set_mute(self, zone: int, mute: bool) -> ZoneStatus:
+    async def set_mute(self, zone: int, mute: bool) -> ZoneStatus | Mute:
         return await self._connection.send_message(
-            _format_set_mute(zone, mute), ZONE_STATUS
+            _format_set_mute(zone, mute), (ZONE_STATUS, SYSTEM_MUTE)
         )
 
     @locked
@@ -1142,8 +1144,8 @@ class NuvoAsync:
         )
 
     @locked
-    async def all_off(self) -> ZoneAllOff:
-        return await self._connection.send_message("ALLOFF", ZONE_ALL_OFF)
+    async def all_off(self) -> ZoneAllOff | ErrorResponse:
+        return await self._connection.send_message("ALLOFF", (ZONE_ALL_OFF, ERROR_RESPONSE))
 
     @locked
     async def get_version(self) -> Version:
