@@ -820,10 +820,11 @@ class NuvoAsync:
         )
 
     async def restore_zone(self, status: ZoneStatus) -> ZoneStatus:
-        await self.set_power(status.zone, status.power)
-        await self.set_mute(status.zone, status.mute)
-        await self.set_volume(status.zone, status.volume)
-        z_status: ZoneStatus = await self.set_source(status.zone, status.source)
+        z_status = await self.set_power(status.zone, status.power)
+        if status.power:
+            await self.set_mute(status.zone, status.mute)
+            await self.set_volume(status.zone, status.volume)
+            z_status: ZoneStatus = await self.set_source(status.zone, status.source)
         return z_status
 
     """
@@ -1267,10 +1268,11 @@ class NuvoSync:
     @synchronized
     def restore_zone(self, status: ZoneStatus) -> Optional[ZoneStatus]:
         rtn: Optional[ZoneStatus]
-        self.set_power(status.zone, status.power)  # ZoneStatus
-        self.set_mute(status.zone, status.mute)  # ZoneStatus
-        self.set_volume(status.zone, status.volume)  # ZoneStatus
-        rtn = self.set_source(status.zone, status.source)  # ZoneStatus
+        rtn = self.set_power(status.zone, status.power)  # ZoneStatus
+        if status.power:
+            self.set_mute(status.zone, status.mute)  # ZoneStatus
+            self.set_volume(status.zone, status.volume)  # ZoneStatus
+            rtn = self.set_source(status.zone, status.source)  # ZoneStatus
         return rtn
 
     """
