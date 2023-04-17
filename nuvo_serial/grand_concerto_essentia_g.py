@@ -26,6 +26,7 @@ from nuvo_serial.const import (
     EMIT_LEVEL_INTERNAL,
     EMIT_LEVEL_NONE,
     ERROR_RESPONSE,
+    MODEL_ESSENTIA_G,
     ZONE_ALL_OFF,
     ZONE_STATUS,
     ZONE_EQ_STATUS,
@@ -41,6 +42,7 @@ from nuvo_serial.const import (
     SYSTEM_PARTY,
     SYSTEM_VERSION,
     OK_RESPONSE,
+    WAKEUP_PAUSE_SECS
 )
 from nuvo_serial.exceptions import ModelMismatchError
 from nuvo_serial.message import (
@@ -762,6 +764,8 @@ class NuvoAsync:
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
     async def set_power(self, zone: int, power: bool) -> ZoneStatus:
+        if self._model == MODEL_ESSENTIA_G and power:
+            await self.wakeup_essentia()
         return await self._connection.send_message(
             _format_set_power(zone, power), ZONE_STATUS
         )
@@ -1172,6 +1176,10 @@ class NuvoAsync:
             _format_mute_all_zones(mute), SYSTEM_MUTE
 
         )
+
+    async def wakeup_essentia(self) -> None:
+        await self._connection.send_raw_bytes_message_without_reply(b"\r")
+        await asyncio.sleep(WAKEUP_PAUSE_SECS)
 
 
 class NuvoSync:

@@ -361,6 +361,9 @@ class AsyncConnection:
     async def send_message_without_reply(self, message: str) -> None:
         await self._send(format_message(self._model, message))
 
+    async def send_raw_bytes_message_without_reply(self, message: bytes) -> None:
+        await self._send(message)
+
     @overload
     async def send_message(
         self,

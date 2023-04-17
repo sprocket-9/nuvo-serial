@@ -36,3 +36,5 @@ EMIT_LEVEL_ALL = "emit_all"
 EMIT_LEVEL_EXTERNAL = "emit_external"
 EMIT_LEVEL_INTERNAL = "emit_internal"
 EMIT_LEVEL_NONE = "emit_none"
+
+WAKEUP_PAUSE_SECS: Final = 0.005
