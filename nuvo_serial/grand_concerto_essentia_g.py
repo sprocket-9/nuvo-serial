@@ -689,6 +689,7 @@ class NuvoAsync:
         disconnect_time: Optional[float] = None,
         do_model_check: Optional[bool] = True,
         track_state: Optional[bool] = True,
+        wakeup_essentia: Optional[bool] = True,
     ):
         self._retry_request = None
         self._port_url = port_url
@@ -697,6 +698,7 @@ class NuvoAsync:
         self._disconnect_time = disconnect_time
         self._do_model_check = do_model_check
         self._track_state = track_state
+        self._wakeup_essentia = wakeup_essentia
         _set_model_globals(self._model)
         self._bus = MsgBus()
         self._physical_zones: int = config[self._model]["zones"]["physical"]
@@ -764,7 +766,7 @@ class NuvoAsync:
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
     async def set_power(self, zone: int, power: bool) -> ZoneStatus:
-        if self._model == MODEL_ESSENTIA_G and power:
+        if self._model == MODEL_ESSENTIA_G and self._wakeup_essentia and power:
             await self.wakeup_essentia()
         return await self._connection.send_message(
             _format_set_power(zone, power), ZONE_STATUS
