@@ -20,6 +20,7 @@ async def get_nuvo_async(
     disconnect_time: Optional[float] = None,
     do_model_check: Optional[bool] = True,
     track_state: Optional[bool] = True,
+    wakeup_essentia: Optional[bool] = True,
 ) -> NuvoAsync:
 
     nuvo = NuvoAsync(
@@ -28,7 +29,8 @@ async def get_nuvo_async(
         timeout=timeout,
         disconnect_time=disconnect_time,
         do_model_check=do_model_check,
-        track_state=track_state
+        track_state=track_state,
+        wakeup_essentia=wakeup_essentia
     )
     await nuvo.connect()
     return nuvo

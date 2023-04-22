@@ -28,6 +28,8 @@ from nuvo_serial.const import (
     EMIT_LEVEL_INTERNAL,
     EMIT_LEVEL_NONE,
     ERROR_RESPONSE,
+    MODEL_ESSENTIA_G,
+    WAKEUP_PAUSE_SECS
 )
 from nuvo_serial.exceptions import (
     MessageClassificationError,
@@ -288,6 +290,7 @@ class AsyncConnection:
         bus: MsgBus,
         timeout: Optional[float] = TIMEOUT_RESPONSE,
         disconnect_time: Optional[float] = DISCONNECT_TIME,
+        wakeup_essentia: Optional[bool] = True,
     ):
         self._port_url = port_url
         self._model = model
@@ -304,6 +307,8 @@ class AsyncConnection:
             self._disconnect_time = disconnect_time
         else:
             self._disconnect_time = DISCONNECT_TIME
+
+        self._wakeup_essentia = wakeup_essentia
 
         self._connected: bool = False
         self._f_connected: asyncio.futures.Future[Any]
@@ -463,6 +468,9 @@ class AsyncConnection:
 
         await self._stop_streaming_reader()
         message = format_message(self._model, msg)
+
+        if self._model == MODEL_ESSENTIA_G and self._wakeup_essentia:
+            await self.wakeup_essentia()
 
         try:
             await self._send(message)
@@ -714,3 +722,7 @@ class AsyncConnection:
             return message
         else:
             raise MessageFormatError(message)
+
+    async def wakeup_essentia(self) -> None:
+        await self.send_raw_bytes_message_without_reply(b"\r")
+        await asyncio.sleep(WAKEUP_PAUSE_SECS)

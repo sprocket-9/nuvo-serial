@@ -26,7 +26,6 @@ from nuvo_serial.const import (
     EMIT_LEVEL_INTERNAL,
     EMIT_LEVEL_NONE,
     ERROR_RESPONSE,
-    MODEL_ESSENTIA_G,
     ZONE_ALL_OFF,
     ZONE_STATUS,
     ZONE_EQ_STATUS,
@@ -42,7 +41,6 @@ from nuvo_serial.const import (
     SYSTEM_PARTY,
     SYSTEM_VERSION,
     OK_RESPONSE,
-    WAKEUP_PAUSE_SECS
 )
 from nuvo_serial.exceptions import ModelMismatchError
 from nuvo_serial.message import (
@@ -715,7 +713,7 @@ class NuvoAsync:
     async def _connect(self) -> None:
         _LOGGER.info('Attempting connection to "%s"', self._port_url)
         self._connection = AsyncConnection(
-            self._port_url, self._model, self._bus, self._timeout, self._disconnect_time
+            self._port_url, self._model, self._bus, self._timeout, self._disconnect_time, self._wakeup_essentia
         )
 
         await self._connection.connect()
@@ -766,8 +764,6 @@ class NuvoAsync:
     @locked
     @icontract.require(lambda zone: zone in ZONE_RANGE)
     async def set_power(self, zone: int, power: bool) -> ZoneStatus:
-        if self._model == MODEL_ESSENTIA_G and self._wakeup_essentia and power:
-            await self.wakeup_essentia()
         return await self._connection.send_message(
             _format_set_power(zone, power), ZONE_STATUS
         )
@@ -1179,9 +1175,9 @@ class NuvoAsync:
 
         )
 
+    @locked
     async def wakeup_essentia(self) -> None:
-        await self._connection.send_raw_bytes_message_without_reply(b"\r")
-        await asyncio.sleep(WAKEUP_PAUSE_SECS)
+        await self._connection.wakeup_essentia()
 
 
 class NuvoSync:
