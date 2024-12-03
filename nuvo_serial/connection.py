@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from asyncio.exceptions import TimeoutError
 
-import serial_asyncio
+import serial_asyncio_fast
 import logging
 import re
 import serial  # type: ignore
@@ -322,7 +322,7 @@ class AsyncConnection:
         StreamReader/StreamWriter method
         """
         serial_settings = config[self._model]["comms"]["transport"]
-        self._reader, self._writer = await serial_asyncio.open_serial_connection(
+        self._reader, self._writer = await serial_asyncio_fast.open_serial_connection(
             url=self._port_url, **serial_settings
         )
         self._connected = True
