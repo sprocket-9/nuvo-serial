@@ -25,6 +25,7 @@ config[MODEL_GC] = {
     "treble": {"max": 18, "min": -18, "step": 2},
     "balance": {"max": 18, "min": 0, "step": 2, "positions": ("L", "C", "R")},
     "gain": {"max": 14, "min": 0, "step": 1},
+    "control_pad_source_display_lines": 4,
     "comms": {
         "transport": {
             "baudrate": 57600,

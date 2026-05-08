@@ -31,6 +31,7 @@ from nuvo_serial.const import (
     ZONE_EQ_STATUS,
     ZONE_STATUS,
     SOURCE_CONFIGURATION,
+    SOURCE_DISPLAY_LINE,
     SYSTEM_MUTE,
     SYSTEM_PAGING,
     SYSTEM_VERSION,
@@ -101,6 +102,10 @@ CONCERTO_SOURCE_CONFIGURATION_ENABLED_PATTERN = re.compile(
     r"NUVONET(?P<nuvonet_source>0|1),"
     r"SHORTNAME\"(?P<short_name>.+)?\""
     # SRCSTATUS(?P<source_status>\d),\  # In spec document but missing in reply
+)
+
+CONCERTO_SOURCE_DISPLAY_LINE_INFORMATION_PATTERN = re.compile(
+    r"#S(?P<source>\d)DISPLINE(?P<line>\d),\"(?P<text>.+)?\""
 )
 
 CONCERTO_ZONE_VOLUME_CONFIGURATION_PATTERN = re.compile(
@@ -702,6 +707,45 @@ class ZoneButton:
         )
 
 
+@dataclass
+class SourceDisplayLine:
+    source: int
+    line: int
+    text: str
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        found_match = None
+        match = re.search(CONCERTO_SOURCE_DISPLAY_LINE_INFORMATION_PATTERN , response_string)
+
+        if match:
+            _LOGGER.debug("CONCERTO_SOURCE_DISPLAY_LINE_INFORMATION_PATTERN - Match")
+            found_match = match
+
+        return found_match
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[SourceDisplayLine]:
+        if not response_string:
+            return None
+
+        source_display_line = cls._parse_response(response_string)
+
+        if not source_display_line:
+            return None
+
+        text = source_display_line.group("text")
+        if not text:
+            text = ""
+
+
+        return SourceDisplayLine(
+            int(source_display_line.group("source")),
+            int(source_display_line.group("line")),
+            text,
+        )
+
+
 NuvoClass = Union[
     ErrorResponse,
     OKResponse,
@@ -714,6 +758,7 @@ NuvoClass = Union[
     ZoneEQStatus,
     ZoneConfiguration,
     SourceConfiguration,
+    SourceDisplayLine,
     ZoneVolumeConfiguration,
     ZoneButton,
     Version,
@@ -728,6 +773,7 @@ MSG_CLASSES = {
         ZONE_EQ_STATUS: ZoneEQStatus,
         ZONE_CONFIGURATION: ZoneConfiguration,
         SOURCE_CONFIGURATION: SourceConfiguration,
+        SOURCE_DISPLAY_LINE: SourceDisplayLine,
         ZONE_VOLUME_CONFIGURATION: ZoneVolumeConfiguration,
         ZONE_BUTTON: ZoneButton,
         SYSTEM_MUTE: Mute,
@@ -748,6 +794,7 @@ MSG_CLASS_KEYS = {
     ZONE_EQ_STATUS: "zone",
     ZONE_CONFIGURATION: "zone",
     SOURCE_CONFIGURATION: "source",
+    SOURCE_DISPLAY_LINE: "source",
     ZONE_VOLUME_CONFIGURATION: "zone",
     ZONE_BUTTON: "zone",
     SYSTEM_MUTE: "system",

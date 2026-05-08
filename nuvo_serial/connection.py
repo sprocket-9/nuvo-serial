@@ -38,6 +38,7 @@ from nuvo_serial.exceptions import (
 )
 
 from nuvo_serial.message import (
+    SourceDisplayLine,
     format_message,
     process_message,
     OKResponse,
@@ -373,6 +374,24 @@ class AsyncConnection:
     async def send_message(
         self,
         msg: str,
+        message_types: Literal["SourceDisplayLine"]
+    ) -> SourceDisplayLine:
+        ...
+
+    @overload
+    async def send_message(
+        self,
+        msg: str,
+        message_types: Tuple[
+            Literal["SourceDisplayLine"],  Literal["OKResponse"]
+        ],
+    ) -> Union[SourceDisplayLine, OKResponse]:
+        ...
+
+    @overload
+    async def send_message(
+        self,
+        msg: str,
         message_types: Tuple[
             Literal["ZoneButton"], Literal["ZoneStatus"], Literal["OKResponse"]
         ],
@@ -452,7 +471,7 @@ class AsyncConnection:
     async def send_message(
         self, msg: str, message_types: Union[NuvoMsgType, Tuple[NuvoMsgType, ...]],
         emit_level: Optional[str] = EMIT_LEVEL_ALL
-    ) -> NuvoClass:
+    ) -> Any:
         """Send a message to the Nuvo and wait for a response."""
 
         self._message = msg  # For pytest to access the message

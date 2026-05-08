@@ -32,6 +32,7 @@ from nuvo_serial.const import (
     ZONE_CONFIGURATION,
     ZONE_VOLUME_CONFIGURATION,
     SOURCE_CONFIGURATION,
+    SOURCE_DISPLAY_LINE,
     ZONE_BUTTON,
     ZONE_BUTTON_PLAY_PAUSE,
     ZONE_BUTTON_PREV,
@@ -51,6 +52,7 @@ from nuvo_serial.message import (
     Paging,
     Party,
     SourceConfiguration,
+    SourceDisplayLine,
     SourceMask,
     ZoneAllOff,
     ZoneButton,
@@ -70,6 +72,7 @@ SOURCE_RANGE: range
 SOURCE_NAME_LONG_MAX_LENGTH: int
 SOURCE_NAME_SHORT_MAX_LENGTH: int
 SOURCE_GAIN_RANGE: range
+SOURCE_DISPLAY_LINE_RANGE: range
 VOLUME_RANGE: range
 
 ZONE_RANGE: range
@@ -89,6 +92,7 @@ def _set_model_globals(model: str) -> None:
     global SOURCE_RANGE
     SOURCE_RANGE = range(1, config[model]["sources"]["total"] + 1)
 
+
     global ZONE_RANGE
     ZONE_RANGE = range(1, config[model]["zones"]["total"] + 1)
 
@@ -107,6 +111,9 @@ def _set_model_globals(model: str) -> None:
         config[model]["gain"]["max"] + 1,
         config[model]["gain"]["step"],
     )
+
+    global SOURCE_DISPLAY_LINE_RANGE
+    SOURCE_DISPLAY_LINE_RANGE = range(1, config[model]["control_pad_source_display_lines"] + 1)
 
     global VOLUME_RANGE
     VOLUME_RANGE = range(
@@ -987,6 +994,38 @@ class NuvoAsync:
             _format_set_source_shortname(source, shortname), SOURCE_CONFIGURATION
         )
 
+
+    """
+    Source Display Commands
+    """
+
+    @locked
+    @icontract.require(lambda source: source in SOURCE_RANGE)
+    async def request_source_display_lines(
+        self, source: int
+    ) -> OKResponse:
+        """Request rather than get a source's display line information. The
+        system sends multiple Source Display Line Information messages in
+        response to this command, one for each line on the display.  Best to
+        set up subscriber for SourceDisplayLine messages."""
+        await self._connection.send_message(
+            _format_get_source_display_line(source), SOURCE_DISPLAY_LINE
+        )
+        return OKResponse(ok_response=True)
+
+    @locked
+    @icontract.require(lambda source: source in SOURCE_RANGE)
+    @icontract.require(lambda line: line in SOURCE_DISPLAY_LINE_RANGE)
+    async def set_source_display_line(
+        self, source: int, line: int, text: str
+    ) -> SourceDisplayLine | OKResponse:
+        """System returns a SourceDisplayLine msg if the supplied text is different
+        from the current line and a change is actually made, or OKResponse for no 
+        change."""
+        return await self._connection.send_message(
+            _format_set_source_display_line(source, line, text), (SOURCE_DISPLAY_LINE, OK_RESPONSE)
+        )
+
     """
     Zone EQ Status Commands
     """
@@ -1529,6 +1568,7 @@ class NuvoSync:
         )
         return rtn
 
+
     """
     Zone Volume Configuration Commands
     """
@@ -1865,3 +1905,14 @@ Zone Button Formats
 
 def _format_zone_button_request(zone: int, button: str) -> str:
     return "Z{}{}".format(zone, button)
+
+"""
+Source Display Line Formats
+"""
+
+
+def _format_set_source_display_line(source: int, line: int, text: str) -> str:
+    return 'S{}DISPLINE{}"{}"'.format(source, line, text)
+
+def _format_get_source_display_line(source: int) -> str:
+    return 'S{}DISPLINE?'.format(source)
