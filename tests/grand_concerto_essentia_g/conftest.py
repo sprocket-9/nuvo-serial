@@ -5,7 +5,7 @@ import pytest
 
 from nuvo_serial import get_nuvo, get_nuvo_async
 from nuvo_serial.connection import SyncRequest, AsyncConnection
-from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G
+from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G, SERIAL_ENCODING
 from nuvo_serial.grand_concerto_essentia_g import NuvoAsync, StateTrack
 from nuvo_serial.message import format_message, process_message
 
@@ -26,7 +26,10 @@ async def buffer_read_for_send_message(self):
     request message."""
 
     if self._streaming_task.done():
-        return find_response(self._message, self._model).encode() + self._eol
+        return (
+            find_response(self._message, self._model).encode(SERIAL_ENCODING)
+            + self._eol
+        )
     else:
         await asyncio.sleep(10)
 
@@ -49,7 +52,7 @@ async def buffer_read_for_send_message(self):
 #     happens at connect() time."""
 
 #     response = find_response("VER", MODEL)
-#     return process_message(MODEL, response.encode())[1]
+#     return process_message(MODEL, response.encode(SERIAL_ENCODING))[1]
 
 
 # @pytest.fixture

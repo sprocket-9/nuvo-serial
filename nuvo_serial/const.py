@@ -39,3 +39,5 @@ EMIT_LEVEL_INTERNAL = "emit_internal"
 EMIT_LEVEL_NONE = "emit_none"
 
 WAKEUP_PAUSE_SECS: Final = 0.005
+
+SERIAL_ENCODING: Final = "windows-1252"

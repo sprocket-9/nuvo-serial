@@ -29,7 +29,8 @@ from nuvo_serial.const import (
     EMIT_LEVEL_NONE,
     ERROR_RESPONSE,
     MODEL_ESSENTIA_G,
-    WAKEUP_PAUSE_SECS
+    WAKEUP_PAUSE_SECS,
+    SERIAL_ENCODING,
 )
 from nuvo_serial.exceptions import (
     MessageClassificationError,
@@ -163,7 +164,7 @@ class SyncRequest:
         # format and send output command
         lineout = "*" + request + "\r"
         _LOGGER.debug('Sending "%s"', request)
-        self._port.write(lineout.encode("ascii"))
+        self._port.write(lineout.encode(SERIAL_ENCODING))
         self._port.flush()  # it is buffering
 
     def _listen_maybewait(self, wait_for_response: bool) -> Optional[str]:
@@ -191,7 +192,7 @@ class SyncRequest:
                     config[self.model]["comms"]["protocol"]["eol"]
                 )
                 _LOGGER.debug("Received: %s", message)
-                reply = message.decode("ascii")
+                reply = message.decode(SERIAL_ENCODING)
                 break
 
             else:
@@ -205,7 +206,7 @@ class SyncRequest:
     def _process_request(self, request: str) -> Optional[str]:
         """
         :param request: request that is sent to the nuvo
-        :return: ascii response_string returned by nuvo
+        :return: decoded serial response string returned by nuvo
         """
 
         # Process any messages that have already been received
@@ -526,7 +527,7 @@ class AsyncConnection:
             _LOGGER.debug("RESPONSEREADER: Response: %s", repr(response))
         except TimeoutError as exc:
             err_msg = "RESPONSEREADER: Timeout waiting for response to message: {}".format(
-                message.decode()
+                message.decode(SERIAL_ENCODING)
             )
             _LOGGER.debug("%s", err_msg)
             self._start_streaming_reader()
@@ -668,6 +669,10 @@ class AsyncConnection:
                 _LOGGER.debug(
                     "STREAMINGREADER: MessageClassificationError: %s", repr(exc)
                 )
+            except UnicodeDecodeError:
+                _LOGGER.exception(
+                    "STREAMINGREADER: stream message is using an encoding that is not %s", SERIAL_ENCODING
+                )
 
     async def _message_response_reader(
         self, message_types: Tuple[str, ...]
@@ -698,6 +703,11 @@ class AsyncConnection:
             # stream, now process it looking for the message_type
             try:
                 processed_type, d_class = process_message(self._model, message)
+            except UnicodeDecodeError:
+                _LOGGER.exception(
+                    "RESPONSEREADER: response message is using an encoding that is not %s", SERIAL_ENCODING
+                )
+                raise
             except MessageClassificationError as exc:
                 # There may well be propely formatted messages that cannot be
                 # classified yet as a handler hasn't been implemented, this is

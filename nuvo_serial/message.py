@@ -36,6 +36,7 @@ from nuvo_serial.const import (
     SYSTEM_PAGING,
     SYSTEM_VERSION,
     SYSTEM_RESTART,
+    SERIAL_ENCODING,
 
 )
 from nuvo_serial.exceptions import (
@@ -834,7 +835,7 @@ def process_message(model: str, message: bytes) -> Tuple[str, NuvoClass]:
     Attempt to classify the received message
     """
     _LOGGER.debug("MSGCLASSIFIER: Process received message: %s", message)
-    msg = message.rstrip().decode("ascii")
+    msg = message.rstrip().decode(SERIAL_ENCODING)
 
     processed_type: str
     processed_data: NuvoClass
@@ -863,4 +864,4 @@ def process_message(model: str, message: bytes) -> Tuple[str, NuvoClass]:
 
 def format_message(model: str, message: str) -> bytes:
     message = f"*{message}\r"
-    return message.encode("ascii")
+    return message.encode(SERIAL_ENCODING)
