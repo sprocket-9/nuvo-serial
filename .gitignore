@@ -1,5 +1,5 @@
 env
-.venv
+.venv/
 *.swp
 *.pyc
 .ropeproject
@@ -10,4 +10,3 @@ env
 dist/
 *.egg-info
 pip-wheel-metadata
-poetry.lock

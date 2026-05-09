@@ -1,27 +1,41 @@
-[tool.poetry]
+[project]
 name = "nuvo-serial"
 version = "0.5.3"
 description = "Python API implementing the Nuvo Grand Concerto/Essentia G multi-zone audio amplifier serial control protocol"
-authors = ["sprocket-9 <sprocketnumber9@gmail.com>"]
-license = "MIT"
 readme = "README.md"
-homepage = "https://github.com/sprocket-9/nuvo-serial"
-repository = "https://github.com/sprocket-9/nuvo-serial"
+requires-python = ">=3.10,<4.0"
+license = "MIT"
+authors = [
+  { name = "sprocket-9", email = "sprocketnumber9@gmail.com" },
+]
+dependencies = [
+  "serialx==1.7.2",
+  "icontract==2.7.3",
+  "typeguard==2.13.3",
+]
 
-[tool.poetry.dependencies]
-python = ">=3.10,<4.0"
-serialx = ">=1.7.2"
-icontract = ">=2.4"
-typeguard = "^2.10"
+[project.urls]
+Homepage = "https://github.com/sprocket-9/nuvo-serial"
+Repository = "https://github.com/sprocket-9/nuvo-serial"
 
-[tool.poetry.dev-dependencies]
-mypy = ">=0.812"
-mypy-extensions = ">=0.4.3"
-pytest = ">=6.2.2"
-pytest-asyncio = ">=0.5"
-ipython = ">=7.21.0"
-ipdb = ">=0.13.7"
+[dependency-groups]
+dev = [
+  "mypy>=0.812",
+  "mypy-extensions>=0.4.3",
+  "pytest>=6.2.2",
+  "pytest-asyncio>=0.5",
+  "ipython>=7.21.0",
+  "ipdb>=0.13.7",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0", "setuptools >= 40.6.0", "wheel", "toml"]
-build-backend = "poetry.core.masonry.api"
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nuvo_serial"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
