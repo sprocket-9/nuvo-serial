@@ -9,9 +9,8 @@ homepage = "https://github.com/sprocket-9/nuvo-serial"
 repository = "https://github.com/sprocket-9/nuvo-serial"
 
 [tool.poetry.dependencies]
-python = "^3.8"
-pyserial-asyncio-fast = ">=0.14"
-pyserial = ">=3.5"
+python = ">=3.10,<4.0"
+serialx = ">=1.7.2"
 icontract = ">=2.4"
 typeguard = "^2.10"
 

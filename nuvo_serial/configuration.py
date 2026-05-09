@@ -3,6 +3,8 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Any, Final, Literal, Union
 
+from serialx import Parity, StopBits
+
 from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G
 
 TIMEOUT_OP = 0.2  # Number of seconds before serial operation timeout
@@ -29,10 +31,10 @@ config[MODEL_GC] = {
     "comms": {
         "transport": {
             "baudrate": 57600,
-            "stopbits": 1,
-            "bytesize": 8,
-            "parity": 'N',
-            "timeout": TIMEOUT_OP,
+            "stopbits": StopBits.ONE,
+            "byte_size": 8,
+            "parity": Parity.NONE,
+            "read_timeout": TIMEOUT_OP,
             "write_timeout": TIMEOUT_OP,
         },
         "protocol": {"eol": b"\r\n", "error_response": b"#?\r\n"}

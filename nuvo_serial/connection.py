@@ -3,10 +3,9 @@ from __future__ import annotations
 import asyncio
 from asyncio.exceptions import TimeoutError
 
-import serial_asyncio_fast
 import logging
 import re
-import serial  # type: ignore
+import serialx
 from typing import (
     Any,
     Callable,
@@ -20,7 +19,7 @@ from typing import (
 from functools import wraps
 from threading import RLock
 import time
-from serial import SerialException
+from serialx import SerialException
 from nuvo_serial.configuration import config
 from nuvo_serial.const import (
     EMIT_LEVEL_ALL,
@@ -68,15 +67,11 @@ TIMEOUT_RESPONSE = 1.0  # Number of seconds before command response timeout
 DISCONNECT_TIME = 2
 
 
-def open_connection(port_url: str, model: str) -> serial.serialutil.SerialBase:
+def open_connection(port_url: str, model: str) -> Any:
 
-    ser = serial.serial_for_url(port_url, do_not_open=True)
-    ser.baudrate = config[model]["comms"]["transport"]["baudrate"]
-    ser.stopbits = config[model]["comms"]["transport"]["stopbits"]
-    ser.bytesize = config[model]["comms"]["transport"]["bytesize"]
-    ser.parity = config[model]["comms"]["transport"]["parity"]
-    ser.timeout = config[model]["comms"]["transport"]["timeout"]
-    ser.write_timeout = config[model]["comms"]["transport"]["write_timeout"]
+    ser = serialx.serial_for_url(
+        port_url, **config[model]["comms"]["transport"]
+    )
     ser.open()
     return ser
 
@@ -324,7 +319,7 @@ class AsyncConnection:
         StreamReader/StreamWriter method
         """
         serial_settings = config[self._model]["comms"]["transport"]
-        self._reader, self._writer = await serial_asyncio_fast.open_serial_connection(
+        self._reader, self._writer = await serialx.open_serial_connection(
             url=self._port_url, **serial_settings
         )
         self._connected = True

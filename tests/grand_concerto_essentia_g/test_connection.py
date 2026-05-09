@@ -1,7 +1,7 @@
 import asyncio
 from dataclasses import asdict, replace
 import pytest
-from serial import SerialException
+from serialx import SerialException
 from tests.const import ZONE
 from nuvo_serial.connection import SyncRequest, AsyncConnection
 from nuvo_serial.exceptions import (

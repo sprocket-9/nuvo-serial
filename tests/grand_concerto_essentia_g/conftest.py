@@ -4,6 +4,7 @@ import socket
 import pytest
 
 from nuvo_serial import get_nuvo, get_nuvo_async
+import nuvo_serial.connection as connection
 from nuvo_serial.connection import SyncRequest, AsyncConnection
 from nuvo_serial.const import MODEL_GC, MODEL_ESSENTIA_G, SERIAL_ENCODING
 from nuvo_serial.grand_concerto_essentia_g import NuvoAsync, StateTrack
@@ -13,11 +14,23 @@ from tests.const import SYNC_PORT_URL, ASYNC_PORT_URL, HOST
 from tests.helper import find_response
 
 
+class DummySerial:
+    def write(self, data):
+        pass
+
+    def flush(self):
+        pass
+
+    def readline(self):
+        return b""
+
+
 @pytest.fixture(scope="session", params=[MODEL_GC, MODEL_ESSENTIA_G])
 def nuvo(request):
     model = request.param
     mpatch = pytest.MonkeyPatch()
     mpatch.setattr(SyncRequest, "_process_request", mock_process_request)
+    mpatch.setattr(connection, "open_connection", lambda port_url, model: DummySerial())
     return get_nuvo(SYNC_PORT_URL, model)
 
 
@@ -81,12 +94,10 @@ class Input(asyncio.Protocol):
 async def async_nuvo(request, event_loop, unused_tcp_port_factory):
     """This fixture does NOT do state tracking."""
 
-    """pyserial-asyncio as of v0.5 does not support loop:// style ports.  It relies
-    on adding writer and reader callbacks to file descriptor activity - loop://
-    is impelemented by pyserial using python in memory Queues which do not have FDs.
+    """The async serial transport needs a real file descriptor/socket.
 
     In order to test the lower level serial port handling code, need to create a
-    listening socket for the pyserial to connect to.  This allows writes to work and
+    listening socket for serialx to connect to.  This allows writes to work and
     reads will be faked with the monkeypatched _read_message_from_buffer.
     """
 
@@ -139,12 +150,10 @@ async def async_nuvo(request, event_loop, unused_tcp_port_factory):
 async def async_nuvo_groups(request, event_loop, unused_tcp_port_factory):
     """This fixture DOES do state tracking."""
 
-    """pyserial-asyncio as of v0.5 does not support loop:// style ports.  It relies
-    on adding writer and reader callbacks to file descriptor activity - loop://
-    is impelemented by pyserial using python in memory Queues which do not have FDs.
+    """The async serial transport needs a real file descriptor/socket.
 
     In order to test the lower level serial port handling code, need to create a
-    listening socket for the pyserial to connect to.  This allows writes to work and
+    listening socket for serialx to connect to.  This allows writes to work and
     reads will be faked with the monkeypatched _read_message_from_buffer.
     """
 
@@ -204,9 +213,11 @@ def mock_process_request(self, request_string):
 def event_loop():
     """Override pytest-asncio's default function-scoped event_loop fixture to use
     session-scoped"""
-    loop = asyncio.get_event_loop()
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
     yield loop
     loop.close()
+    asyncio.set_event_loop(None)
 
 
 async def get_initial_states(self) -> None:
