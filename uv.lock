@@ -394,7 +394,7 @@ wheels = [
 
 [[package]]
 name = "nuvo-serial"
-version = "0.6.0"
+version = "0.6.1"
 source = { editable = "." }
 dependencies = [
     { name = "icontract" },
@@ -415,9 +415,9 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "icontract", specifier = "==2.7.3" },
+    { name = "icontract", specifier = ">=2.7.3" },
     { name = "serialx", specifier = ">=1.7.0" },
-    { name = "typeguard", specifier = "==2.13.3" },
+    { name = "typeguard", specifier = ">=2.13.3" },
 ]
 
 [package.metadata.requires-dev]
