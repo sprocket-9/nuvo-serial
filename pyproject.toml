@@ -10,8 +10,8 @@ authors = [
 ]
 dependencies = [
   "serialx>=1.7.0",
-  "icontract>=2.7.3",
-  "typeguard>=2.13.3",
+  "icontract>=2.7.3,<3",
+  "typeguard>=2.13.3,<3",
 ]
 
 [project.urls]
