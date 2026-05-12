@@ -179,6 +179,16 @@ grand_concerto_responses[
 ] = '#SCFG4,ENABLE1,NAME"Network Streamer",GAIN4,NUVONET0,SHORTNAME"ABC"'
 
 """
+Source Display Line
+"""
+grand_concerto_patterns["source_display_line_set"] = re.compile(
+    r"S(?P<source>\d+)DISPLINE(?P<line>\d+)\"(?P<text>.+)\"$"
+)
+grand_concerto_responses[
+    "source_display_line_set"
+] = '#S4DISPLINE1,"Music Server"'
+
+"""
 Zone Volume Configuration
 """
 grand_concerto_patterns["zone_volume_configuration"] = re.compile(
