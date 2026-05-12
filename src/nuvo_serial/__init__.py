@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from typing import Optional
-from typeguard.importhook import install_import_hook
-
-from nuvo_serial.grand_concerto_essentia_g import NuvoSync, NuvoAsync
+from typeguard import install_import_hook
 
 install_import_hook("nuvo_serial")
+
+from nuvo_serial.grand_concerto_essentia_g import NuvoSync, NuvoAsync
 
 
 def get_nuvo(port_url: str, model: str, retries: Optional[int] = None) -> NuvoSync:
