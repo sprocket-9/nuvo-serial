@@ -1,6 +1,6 @@
 [project]
 name = "nuvo-serial"
-version = "0.6.1"
+version = "0.6.2"
 description = "Python API implementing the Nuvo Grand Concerto/Essentia G multi-zone audio amplifier serial control protocol"
 readme = "README.md"
 requires-python = ">=3.10,<4.0"
