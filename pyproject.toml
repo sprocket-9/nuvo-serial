@@ -9,7 +9,7 @@ authors = [
   { name = "sprocket-9", email = "sprocketnumber9@gmail.com" },
 ]
 dependencies = [
-  "serialx==1.7.2",
+  "serialx>=1.7.0",
   "icontract==2.7.3",
   "typeguard==2.13.3",
 ]

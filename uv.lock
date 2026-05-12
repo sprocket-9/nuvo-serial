@@ -416,7 +416,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "icontract", specifier = "==2.7.3" },
-    { name = "serialx", specifier = "==1.7.2" },
+    { name = "serialx", specifier = ">=1.7.0" },
     { name = "typeguard", specifier = "==2.13.3" },
 ]
 
