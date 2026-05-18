@@ -189,6 +189,16 @@ grand_concerto_responses[
 ] = '#S4DISPLINE1,"Music Server"'
 
 """
+Source Display Track
+"""
+grand_concerto_patterns["source_display_track_set"] = re.compile(
+    r"S(?P<source>\d+)DISPINFO,(?P<track_duration>\d+),(?P<track_position>\d+),(?P<status>\d+)$"
+)
+grand_concerto_responses[
+    "source_display_track_set"
+] = "#S4DISPINFO,DUR240,POS17,STATUS1"
+
+"""
 Zone Volume Configuration
 """
 grand_concerto_patterns["zone_volume_configuration"] = re.compile(

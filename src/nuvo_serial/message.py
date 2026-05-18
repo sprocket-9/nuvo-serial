@@ -32,6 +32,7 @@ from nuvo_serial.const import (
     ZONE_STATUS,
     SOURCE_CONFIGURATION,
     SOURCE_DISPLAY_LINE,
+    SOURCE_DISPLAY_TRACK,
     SYSTEM_MUTE,
     SYSTEM_PAGING,
     SYSTEM_VERSION,
@@ -107,6 +108,10 @@ CONCERTO_SOURCE_CONFIGURATION_ENABLED_PATTERN = re.compile(
 
 CONCERTO_SOURCE_DISPLAY_LINE_INFORMATION_PATTERN = re.compile(
     r"#S(?P<source>\d)DISPLINE(?P<line>\d),\"(?P<text>.+)?\""
+)
+
+CONCERTO_SOURCE_DISPLAY_TRACK_STATUS_PATTERN = re.compile(
+    r"#S(?P<source>\d)DISPINFO,DUR(?P<track_duration>\d+),POS(?P<track_position>\d+),STATUS(?P<status>\d+)$"
 )
 
 CONCERTO_ZONE_VOLUME_CONFIGURATION_PATTERN = re.compile(
@@ -747,6 +752,42 @@ class SourceDisplayLine:
         )
 
 
+@dataclass
+class SourceDisplayTrack:
+    source: int
+    track_duration: int
+    track_position: int
+    status: int
+
+    @classmethod
+    def _parse_response(cls, response_string: str) -> Optional[Match[str]]:
+        found_match = None
+        match = re.search(CONCERTO_SOURCE_DISPLAY_TRACK_STATUS_PATTERN , response_string)
+
+        if match:
+            _LOGGER.debug("CONCERTO_SOURCE_DISPLAY_TRACK_STATUS_PATTERN - Match")
+            found_match = match
+
+        return found_match
+
+    @classmethod
+    def from_string(cls, response_string: Optional[str]) -> Optional[SourceDisplayTrack]:
+        if not response_string:
+            return None
+
+        source_display_track_status = cls._parse_response(response_string)
+
+        if not source_display_track_status:
+            return None
+
+        return SourceDisplayTrack(
+            int(source_display_track_status.group("source")),
+            int(source_display_track_status.group("track_duration")),
+            int(source_display_track_status.group("track_position")),
+            int(source_display_track_status.group("status")),
+        )
+
+
 NuvoClass = Union[
     ErrorResponse,
     OKResponse,
@@ -760,6 +801,7 @@ NuvoClass = Union[
     ZoneConfiguration,
     SourceConfiguration,
     SourceDisplayLine,
+    SourceDisplayTrack,
     ZoneVolumeConfiguration,
     ZoneButton,
     Version,
@@ -775,6 +817,7 @@ MSG_CLASSES = {
         ZONE_CONFIGURATION: ZoneConfiguration,
         SOURCE_CONFIGURATION: SourceConfiguration,
         SOURCE_DISPLAY_LINE: SourceDisplayLine,
+        SOURCE_DISPLAY_TRACK: SourceDisplayTrack,
         ZONE_VOLUME_CONFIGURATION: ZoneVolumeConfiguration,
         ZONE_BUTTON: ZoneButton,
         SYSTEM_MUTE: Mute,
@@ -796,6 +839,7 @@ MSG_CLASS_KEYS = {
     ZONE_CONFIGURATION: "zone",
     SOURCE_CONFIGURATION: "source",
     SOURCE_DISPLAY_LINE: "source",
+    SOURCE_DISPLAY_TRACK: "source",
     ZONE_VOLUME_CONFIGURATION: "zone",
     ZONE_BUTTON: "zone",
     SYSTEM_MUTE: "system",

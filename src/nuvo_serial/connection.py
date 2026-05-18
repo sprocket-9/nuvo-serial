@@ -38,7 +38,6 @@ from nuvo_serial.exceptions import (
 )
 
 from nuvo_serial.message import (
-    SourceDisplayLine,
     format_message,
     process_message,
     OKResponse,
@@ -46,6 +45,8 @@ from nuvo_serial.message import (
     Paging,
     Party,
     SourceConfiguration,
+    SourceDisplayLine,
+    SourceDisplayTrack,
     ZoneAllOff,
     ZoneButton,
     ZoneConfiguration,
@@ -382,6 +383,24 @@ class AsyncConnection:
             Literal["SourceDisplayLine"],  Literal["OKResponse"]
         ],
     ) -> Union[SourceDisplayLine, OKResponse]:
+        ...
+
+    @overload
+    async def send_message(
+        self,
+        msg: str,
+        message_types: Literal["SourceDisplayTrack"]
+    ) -> SourceDisplayTrack:
+        ...
+
+    @overload
+    async def send_message(
+        self,
+        msg: str,
+        message_types: Tuple[
+            Literal["SourceDisplayTrack"],  Literal["OKResponse"]
+        ],
+    ) -> Union[SourceDisplayTrack, OKResponse]:
         ...
 
     @overload

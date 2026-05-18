@@ -33,6 +33,7 @@ from nuvo_serial.const import (
     ZONE_VOLUME_CONFIGURATION,
     SOURCE_CONFIGURATION,
     SOURCE_DISPLAY_LINE,
+    SOURCE_DISPLAY_TRACK,
     ZONE_BUTTON,
     ZONE_BUTTON_PLAY_PAUSE,
     ZONE_BUTTON_PREV,
@@ -53,6 +54,7 @@ from nuvo_serial.message import (
     Party,
     SourceConfiguration,
     SourceDisplayLine,
+    SourceDisplayTrack,
     SourceMask,
     ZoneAllOff,
     ZoneButton,
@@ -73,6 +75,7 @@ SOURCE_NAME_LONG_MAX_LENGTH: int
 SOURCE_NAME_SHORT_MAX_LENGTH: int
 SOURCE_GAIN_RANGE: range
 SOURCE_DISPLAY_LINE_RANGE: range
+SOURCE_DISPLAY_TRACK_RANGE: range
 VOLUME_RANGE: range
 
 ZONE_RANGE: range
@@ -114,6 +117,9 @@ def _set_model_globals(model: str) -> None:
 
     global SOURCE_DISPLAY_LINE_RANGE
     SOURCE_DISPLAY_LINE_RANGE = range(1, config[model]["control_pad_source_display_lines"] + 1)
+
+    global SOURCE_DISPLAY_TRACK_RANGE
+    SOURCE_DISPLAY_TRACK_RANGE = range(0, 9)
 
     global VOLUME_RANGE
     VOLUME_RANGE = range(
@@ -1026,6 +1032,37 @@ class NuvoAsync:
             _format_set_source_display_line(source, line, text), (SOURCE_DISPLAY_LINE, OK_RESPONSE)
         )
 
+    @locked
+    @icontract.require(lambda source: source in SOURCE_RANGE)
+    async def get_source_display_track(
+        self, source: int
+    ) -> SourceDisplayTrack:
+        return await self._connection.send_message(
+            _format_get_source_display_track(source), SOURCE_DISPLAY_TRACK
+        )
+
+    @staticmethod
+    def _validate_track_position(track_duration: int, track_position: int):
+        if track_position >= 0 and track_position <= track_duration:
+            return True
+        return False
+
+    @locked
+    @icontract.require(lambda source: source in SOURCE_RANGE)
+    @icontract.require(lambda track_duration: track_duration >= 0)
+    @icontract.require(_validate_track_position)
+    @icontract.require(lambda status: status in SOURCE_DISPLAY_TRACK_RANGE)
+    async def set_source_display_track(
+        self, source: int, track_duration: int, track_position: int, status: int
+    ) -> SourceDisplayTrack:
+        return await self._connection.send_message(
+            _format_set_source_display_track(
+                source, track_duration, track_position, status
+            ),
+            SOURCE_DISPLAY_TRACK,
+        )
+
+
     """
     Zone EQ Status Commands
     """
@@ -1916,3 +1953,9 @@ def _format_set_source_display_line(source: int, line: int, text: str) -> str:
 
 def _format_get_source_display_line(source: int) -> str:
     return 'S{}DISPLINE?'.format(source)
+
+def _format_get_source_display_track(source: int) -> str:
+    return 'S{}DISPINFO?'.format(source)
+
+def _format_set_source_display_track(source: int, track_duration: int, track_position: int, status: int) -> str:
+    return 'S{}DISPINFO,{},{},{}'.format(source, track_duration, track_position, status)

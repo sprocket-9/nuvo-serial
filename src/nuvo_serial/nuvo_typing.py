@@ -8,6 +8,7 @@ NuvoMsgType = Union[
     Literal["Party"],
     Literal["SourceConfiguration"],
     Literal["SourceDisplayLine"],
+    Literal["SourceDisplayTrack"],
     Literal["Version"],
     Literal["ZoneAllOff"],
     Literal["ZoneButton"],
