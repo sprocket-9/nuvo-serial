@@ -1054,12 +1054,15 @@ class NuvoAsync:
     @icontract.require(lambda status: status in SOURCE_DISPLAY_TRACK_RANGE)
     async def set_source_display_track(
         self, source: int, track_duration: int, track_position: int, status: int
-    ) -> SourceDisplayTrack:
+    ) -> SourceDisplayTrack | OKResponse:
+        """System returns a SourceDisplayTrack msg if the supplied info is different
+        from the current track info and a change is actually made, or OKResponse for no 
+        change."""
         return await self._connection.send_message(
             _format_set_source_display_track(
                 source, track_duration, track_position, status
             ),
-            SOURCE_DISPLAY_TRACK,
+            (SOURCE_DISPLAY_TRACK, OK_RESPONSE),
         )
 
 
